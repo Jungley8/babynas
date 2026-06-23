@@ -11,7 +11,7 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;font-family:-apple-system,"PingFang SC",sans-serif;color:#3a3a4a;
-    user-select:none;-webkit-user-select:none;overflow:hidden;
+    user-select:none;-webkit-user-select:none;overflow:hidden;overscroll-behavior:none;
     background:linear-gradient(160deg,#FFF1EB 0%,#FBE8F0 40%,#ACE0F9 100%)}
   /* 柔和动态光斑背景 */
   body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(70px);
@@ -29,7 +29,7 @@
     box-shadow:0 2px 10px rgba(0,0,0,.12);transition:transform .12s}
   #back:active{transform:scale(.9)}
   #back.show{display:block}
-  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 16px 24px}
+  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 16px 24px}
   /* 入口大卡片 */
   .home{display:grid;grid-template-columns:1fr;gap:18px;padding-top:10px}
   .entry{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:28px;border-radius:30px;
@@ -70,12 +70,25 @@
     padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom)}
   #player.show{display:flex}
   #player .close{align-self:flex-end;background:rgba(255,255,255,.15);border:none;color:#fff;
-    width:44px;height:44px;border-radius:50%;font-size:22px;cursor:pointer;margin:14px 0}
+    width:56px;height:56px;border-radius:50%;font-size:26px;cursor:pointer;margin:14px 0}
+  #player .close:active{transform:scale(.9)}
   #player .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
   #player img{width:60vw;max-width:280px;aspect-ratio:1;border-radius:28px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
   #player video{width:100%;max-height:60vh;border-radius:16px;background:#000}
   #player .pt{font-size:18px;font-weight:700;text-align:center}
   #player audio{width:100%;max-width:420px}
+  /* 家长须知 */
+  #guide{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;
+    background:rgba(20,18,30,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:24px}
+  #guide.show{display:flex}
+  .g-card{background:#fff;border-radius:26px;padding:28px 24px;max-width:420px;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);animation:rise .4s cubic-bezier(.2,.8,.2,1)}
+  .g-em{font-size:48px;text-align:center}
+  .g-card h2{text-align:center;font-size:20px;margin:6px 0 16px}
+  .g-card ul{list-style:none;display:flex;flex-direction:column;gap:13px;font-size:14px;line-height:1.6;color:#4a4a5a}
+  .g-card li b{color:#E8506E}
+  .g-card button{margin-top:22px;width:100%;padding:15px;border:none;border-radius:16px;
+    background:linear-gradient(135deg,#F6D365,#FDA085);color:#fff;font-size:16px;font-weight:800;cursor:pointer}
   /* 用眼提醒 */
   #rest{position:fixed;inset:0;background:rgba(10,10,20,.92);z-index:200;display:none;
     flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:20px;text-align:center;padding:30px}
@@ -92,6 +105,20 @@
     <h1 id="title">宝宝乐园</h1>
   </header>
   <main id="main"></main>
+</div>
+
+<div id="guide">
+  <div class="g-card">
+    <div class="g-em">🍼</div>
+    <h2>给家长的话</h2>
+    <ul>
+      <li>👀 <b>护眼</b>：18 月龄以下建议只听不看；听音频时请熄屏。连续 20 分钟会自动提醒休息。</li>
+      <li>🔊 <b>护耳</b>：音量已做全局上限，仍请保持中低音量、避免贴耳。</li>
+      <li>⏱️ <b>限时</b>：2-5 岁每天屏幕时间建议 ≤1 小时，并由家长陪同。</li>
+      <li>🔒 <b>防误触</b>：iOS 用「引导式访问」锁定本应用；游戏内需<b>长按</b>主页键才能退出。</li>
+    </ul>
+    <button onclick="closeGuide()">我知道了，开始吧</button>
+  </div>
 </div>
 
 <div id="player">
@@ -119,9 +146,12 @@ const ENTRIES = [
 ];
 
 const GAMES = [
-  { id:'bubbles', em:'🫧', name:'戳泡泡' },
-  { id:'drum',    em:'🥁', name:'敲敲乐' },
-  { id:'piano',   em:'🎹', name:'弹琴'  },
+  { id:'bubbles',   em:'🫧', name:'戳泡泡' },
+  { id:'animals',   em:'🐾', name:'动物点点' },
+  { id:'drum',      em:'🥁', name:'敲敲乐' },
+  { id:'piano',     em:'🎹', name:'弹琴'  },
+  { id:'fireworks', em:'🎆', name:'放烟花' },
+  { id:'paint',     em:'🎨', name:'涂鸦'  },
 ];
 
 function goHome() {
@@ -246,7 +276,18 @@ function dismissRest() {
   document.getElementById('rest').classList.remove('show');
 }
 
+// 首次启动显示家长须知（localStorage 记忆）
+function closeGuide(){
+  document.getElementById('guide').classList.remove('show');
+  try{localStorage.setItem('baby_guide_seen','1');}catch(e){}
+}
+function maybeShowGuide(){
+  let seen=false;try{seen=localStorage.getItem('baby_guide_seen')==='1';}catch(e){}
+  if(!seen)document.getElementById('guide').classList.add('show');
+}
+
 goHome();
+maybeShowGuide();
 </script>
 </body>
 </html>

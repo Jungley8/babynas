@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>烟花</title>
+<style>
+  *{margin:0;padding:0;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:radial-gradient(circle at 50% 120%,#1b2a4a,#0a0f1e);
+    user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
+  canvas{display:block;position:fixed;inset:0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="/games/shared.js"></script>
+<script>
+babyExitButton();
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H;function resize(){W=cv.width=innerWidth*devicePixelRatio;H=cv.height=innerHeight*devicePixelRatio;}
+resize();addEventListener('resize',resize);
+const COLORS=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FF6FB5','#C780FA','#FF9F45'];
+let parts=[];
+function burst(x,y){
+  const col=COLORS[Math.random()*COLORS.length|0];
+  const n=26+Math.random()*16;
+  for(let i=0;i<n;i++){
+    const a=(Math.PI*2*i)/n,sp=2+Math.random()*4;
+    parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col});
+  }
+  boom();babyVibrate(30);
+}
+function boom(){
+  const {ac,out}=babyAudio(),t=ac.currentTime;
+  // 升空 whistle
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type='sine';o.frequency.setValueAtTime(400,t);o.frequency.exponentialRampToValueAtTime(1200,t+0.15);
+  o.connect(g);g.connect(out);g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);o.start(t);o.stop(t+0.2);
+  // 爆裂 noise
+  const buf=ac.createBuffer(1,ac.sampleRate*0.3,ac.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+  const src=ac.createBufferSource();src.buffer=buf;const ng=ac.createGain();
+  src.connect(ng);ng.connect(out);ng.gain.setValueAtTime(0.5,t+0.16);ng.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+  src.start(t+0.16);
+}
+function loop(){
+  ctx.fillStyle='rgba(10,15,30,.25)';ctx.fillRect(0,0,W,H);
+  const dpr=devicePixelRatio;
+  for(const p of parts){
+    p.x+=p.vx*dpr;p.y+=p.vy*dpr;p.vy+=0.05*dpr;p.vx*=0.985;p.life-=0.012;
+    ctx.globalAlpha=Math.max(p.life,0);ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,3.2*dpr,0,7);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  parts=parts.filter(p=>p.life>0);
+  requestAnimationFrame(loop);
+}
+loop();
+function handle(e){
+  if(e.target.closest('#baby-exit'))return;
+  e.preventDefault();
+  const pts=e.touches?e.touches:[e];
+  for(const p of pts)burst(p.clientX*devicePixelRatio,p.clientY*devicePixelRatio);
+}
+document.body.addEventListener('touchstart',handle,{passive:false});
+document.body.addEventListener('mousedown',handle);
+</script>
+</body>
+</html>

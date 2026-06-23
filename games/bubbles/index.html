@@ -8,10 +8,7 @@
 <style>
   *{margin:0;padding:0;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
   html,body{height:100%;overflow:hidden;background:linear-gradient(160deg,#A1C4FD,#C2E9FB);
-    user-select:none;-webkit-user-select:none;touch-action:none}
-  #home{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:14px;z-index:10;
-    width:44px;height:44px;border:none;border-radius:50%;background:rgba(255,255,255,.7);
-    font-size:22px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
   .bubble{position:absolute;border-radius:50%;pointer-events:none;
     background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.9),rgba(255,255,255,.15) 60%,rgba(255,255,255,0));
     border:2px solid rgba(255,255,255,.5)}
@@ -20,17 +17,15 @@
 </style>
 </head>
 <body>
-<button id="home" onclick="location.href='/'">←</button>
+<script src="/games/shared.js"></script>
 <script>
-let AC;
+babyExitButton();
 function tone(){
-  AC = AC || new (window.AudioContext||window.webkitAudioContext)();
-  if(AC.state==='suspended')AC.resume();
-  const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+  const {ac,out}=babyAudio(),t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
   o.type='sine';
   o.frequency.setValueAtTime(700+Math.random()*900,t);
   o.frequency.exponentialRampToValueAtTime(200,t+0.18);
-  o.connect(g);g.connect(AC.destination);
+  o.connect(g);g.connect(out);
   g.gain.setValueAtTime(0.4,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
   o.start(t);o.stop(t+0.25);
 }
@@ -43,10 +38,10 @@ function spawn(x,y){
   document.body.appendChild(b);
   requestAnimationFrame(()=>b.classList.add('pop'));
   b.addEventListener('animationend',()=>b.remove());
-  tone();
-  if(navigator.vibrate)navigator.vibrate(20);
+  tone();babyVibrate(20);
 }
 function handle(e){
+  if(e.target.closest('#baby-exit'))return;
   e.preventDefault();
   const pts=e.touches?e.touches:[e];
   for(const p of pts)spawn(p.clientX,p.clientY);

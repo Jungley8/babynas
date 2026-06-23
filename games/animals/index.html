@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>动物点点</title>
+<style>
+  *{margin:0;padding:0;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;
+    background:linear-gradient(160deg,#D4FC79,#96E6A1)}
+  #grid{height:100%;height:100dvh;display:grid;grid-template-columns:1fr 1fr 1fr;
+    align-content:center;gap:10px;padding:10px;padding-top:calc(env(safe-area-inset-top) + 56px)}
+  .animal{aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:min(15vw,72px);background:rgba(255,255,255,.55);box-shadow:0 6px 16px rgba(0,0,0,.12);
+    cursor:pointer;transition:transform .1s}
+  .animal.jump{animation:jump .5s ease}
+  @keyframes jump{0%,100%{transform:translateY(0) scale(1)}30%{transform:translateY(-22px) scale(1.15)}60%{transform:translateY(0) scale(.95)}}
+  .name{position:fixed;bottom:8%;left:50%;transform:translateX(-50%);font-size:34px;font-weight:800;
+    color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;transition:opacity .2s;pointer-events:none}
+  .name.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div class="name" id="name"></div>
+<script src="/games/shared.js"></script>
+<script>
+babyExitButton();
+const nameEl=document.getElementById('name');
+// 每个动物：emoji + 名称 + 合成叫声参数
+const ANIMALS=[
+  {em:'🐶',n:'小狗',sound:dog},
+  {em:'🐱',n:'小猫',sound:cat},
+  {em:'🐄',n:'奶牛',sound:cow},
+  {em:'🐑',n:'小羊',sound:sheep},
+  {em:'🐦',n:'小鸟',sound:bird},
+  {em:'🐸',n:'青蛙',sound:frog},
+  {em:'🐝',n:'蜜蜂',sound:bee},
+  {em:'🦆',n:'鸭子',sound:duck},
+  {em:'🐔',n:'公鸡',sound:rooster},
+];
+function dog(){const{ac,out}=babyAudio(),t=ac.currentTime;[0,0.3].forEach(o=>{const os=ac.createOscillator(),g=ac.createGain();os.type='sawtooth';os.frequency.setValueAtTime(300,t+o);os.frequency.linearRampToValueAtTime(150,t+o+0.16);os.connect(g);g.connect(out);g.gain.setValueAtTime(0.5,t+o);g.gain.exponentialRampToValueAtTime(0.001,t+o+0.2);os.start(t+o);os.stop(t+o+0.22)})}
+function cat(){const{ac,out}=babyAudio(),t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.setValueAtTime(650,t);o.frequency.linearRampToValueAtTime(880,t+0.12);o.frequency.linearRampToValueAtTime(700,t+0.4);o.connect(g);g.connect(out);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.45,t+0.05);g.gain.exponentialRampToValueAtTime(0.001,t+0.45);o.start(t);o.stop(t+0.5)}
+function cow(){const{ac,out}=babyAudio(),t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(160,t);o.frequency.linearRampToValueAtTime(120,t+0.6);o.connect(g);g.connect(out);g.gain.setValueAtTime(0.55,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.7);o.start(t);o.stop(t+0.75)}
+function sheep(){const{ac,out}=babyAudio(),t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(400,t);for(let i=0;i<8;i++)o.frequency.setValueAtTime(i%2?440:380,t+0.05+i*0.04);o.connect(g);g.connect(out);g.gain.setValueAtTime(0.4,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.5);o.start(t);o.stop(t+0.55)}
+function bird(){const{ac,out}=babyAudio(),t=ac.currentTime;[1400,1700,1500,1800].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(out);g.gain.setValueAtTime(0.3,t+i*0.08);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.07);o.start(t+i*0.08);o.stop(t+i*0.08+0.09)})}
+function frog(){const{ac,out}=babyAudio(),t=ac.currentTime;[0,0.18,0.36].forEach(o=>{const os=ac.createOscillator(),g=ac.createGain();os.type='square';os.frequency.setValueAtTime(180,t+o);os.frequency.linearRampToValueAtTime(120,t+o+0.1);os.connect(g);g.connect(out);g.gain.setValueAtTime(0.35,t+o);g.gain.exponentialRampToValueAtTime(0.001,t+o+0.12);os.start(t+o);os.stop(t+o+0.14)})}
+function bee(){const{ac,out}=babyAudio(),t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(220,t);for(let i=0;i<20;i++)o.frequency.setValueAtTime(200+(i%2)*40,t+i*0.03);o.connect(g);g.connect(out);g.gain.setValueAtTime(0.25,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.6);o.start(t);o.stop(t+0.65)}
+function duck(){const{ac,out}=babyAudio(),t=ac.currentTime;[0,0.2].forEach(o=>{const os=ac.createOscillator(),g=ac.createGain();os.type='square';os.frequency.setValueAtTime(500,t+o);os.frequency.linearRampToValueAtTime(380,t+o+0.12);os.connect(g);g.connect(out);g.gain.setValueAtTime(0.3,t+o);g.gain.exponentialRampToValueAtTime(0.001,t+o+0.15);os.start(t+o);os.stop(t+o+0.17)})}
+function rooster(){const{ac,out}=babyAudio(),t=ac.currentTime;[523,659,784,659].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sawtooth';o.frequency.value=f;o.connect(g);g.connect(out);g.gain.setValueAtTime(0.35,t+i*0.15);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.15+0.2);o.start(t+i*0.15);o.stop(t+i*0.15+0.22)})}
+
+const grid=document.getElementById('grid');
+ANIMALS.forEach(a=>{
+  const d=document.createElement('div');
+  d.className='animal';d.textContent=a.em;
+  const hit=e=>{e.preventDefault();a.sound();d.classList.remove('jump');void d.offsetWidth;d.classList.add('jump');
+    nameEl.textContent=a.n;nameEl.classList.add('show');clearTimeout(nameEl._t);nameEl._t=setTimeout(()=>nameEl.classList.remove('show'),900);
+    babyVibrate(22);};
+  d.addEventListener('touchstart',hit,{passive:false});
+  d.addEventListener('mousedown',hit);
+  grid.appendChild(d);
+});
+</script>
+</body>
+</html>
