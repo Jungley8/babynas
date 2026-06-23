@@ -1,0 +1,13 @@
+# 编译产物
+/babynas
+/dist/
+*.exe
+
+# 数据库与运行时数据
+*.db
+*.db-wal
+*.db-shm
+
+# 系统
+.DS_Store
+*.log

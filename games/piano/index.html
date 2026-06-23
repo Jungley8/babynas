@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>弹琴</title>
+<style>
+  *{margin:0;padding:0;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#1a1830;user-select:none;-webkit-user-select:none;touch-action:none}
+  #home{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:14px;z-index:10;
+    width:44px;height:44px;border:none;border-radius:50%;background:rgba(255,255,255,.7);
+    font-size:22px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  #keys{height:100%;height:100dvh;display:flex;padding:8px;gap:6px;
+    padding-top:calc(env(safe-area-inset-top) + 60px)}
+  .key{flex:1;border-radius:0 0 18px 18px;display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:24px;font-size:22px;font-weight:800;color:rgba(0,0,0,.35);
+    box-shadow:inset 0 -8px 16px rgba(0,0,0,.15);transition:transform .06s,filter .06s;cursor:pointer}
+  .key.hit{transform:scaleY(.96);filter:brightness(1.25)}
+</style>
+</head>
+<body>
+<button id="home" onclick="location.href='/'">←</button>
+<div id="keys"></div>
+<script>
+let AC;
+function ac(){AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC;}
+// C 大调七音 do re mi fa sol la si
+const KEYS=[
+  {n:'do',f:262,c:'#FF8FB1'},{n:'re',f:294,c:'#FFB36B'},{n:'mi',f:330,c:'#FFE66B'},
+  {n:'fa',f:349,c:'#9BE38F'},{n:'sol',f:392,c:'#7FD8D8'},{n:'la',f:440,c:'#9DB8FF'},
+  {n:'si',f:494,c:'#C49BFF'},
+];
+function note(f){
+  const a=ac(),t=a.currentTime,o=a.createOscillator(),g=a.createGain();
+  o.type='triangle';o.frequency.value=f;
+  o.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.4,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+  o.start(t);o.stop(t+0.75);
+  // 泛音让音色更像钢琴
+  const o2=a.createOscillator(),g2=a.createGain();
+  o2.type='sine';o2.frequency.value=f*2;o2.connect(g2);g2.connect(a.destination);
+  g2.gain.setValueAtTime(0.12,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+  o2.start(t);o2.stop(t+0.45);
+  if(navigator.vibrate)navigator.vibrate(18);
+}
+const keys=document.getElementById('keys');
+KEYS.forEach(k=>{
+  const d=document.createElement('div');
+  d.className='key';d.style.background=`linear-gradient(180deg,#fff,${k.c})`;d.textContent=k.n;
+  const hit=e=>{e.preventDefault();note(k.f);d.classList.add('hit');setTimeout(()=>d.classList.remove('hit'),100);};
+  d.addEventListener('touchstart',hit,{passive:false});
+  d.addEventListener('mousedown',hit);
+  keys.appendChild(d);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="宝宝乐园">
+<meta name="theme-color" content="#FFF1EB">
+<title>宝宝乐园</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;font-family:-apple-system,"PingFang SC",sans-serif;color:#3a3a4a;
+    user-select:none;-webkit-user-select:none;overflow:hidden;
+    background:linear-gradient(160deg,#FFF1EB 0%,#FBE8F0 40%,#ACE0F9 100%)}
+  /* 柔和动态光斑背景 */
+  body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(70px);
+    opacity:.5;z-index:0;pointer-events:none}
+  body::before{width:340px;height:340px;background:#FFD3A5;top:-80px;left:-60px;animation:float1 14s ease-in-out infinite}
+  body::after{width:300px;height:300px;background:#A1C4FD;bottom:-70px;right:-50px;animation:float2 18s ease-in-out infinite}
+  @keyframes float1{50%{transform:translate(40px,50px) scale(1.1)}}
+  @keyframes float2{50%{transform:translate(-40px,-40px) scale(1.15)}}
+  #app{position:relative;z-index:1;height:100%;height:100dvh;display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);max-width:760px;margin:0 auto}
+  header{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:14px 18px}
+  header h1{font-size:21px;font-weight:800;letter-spacing:.5px}
+  #back{display:none;border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;
+    background:rgba(255,255,255,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    box-shadow:0 2px 10px rgba(0,0,0,.12);transition:transform .12s}
+  #back:active{transform:scale(.9)}
+  #back.show{display:block}
+  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 16px 24px}
+  /* 入口大卡片 */
+  .home{display:grid;grid-template-columns:1fr;gap:18px;padding-top:10px}
+  .entry{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:28px;border-radius:30px;
+    color:#fff;font-size:26px;font-weight:800;cursor:pointer;border:none;text-align:left;
+    box-shadow:0 10px 28px rgba(0,0,0,.14);transition:transform .14s,box-shadow .14s;
+    animation:rise .5s cubic-bezier(.2,.8,.2,1) backwards}
+  .entry:nth-child(1){animation-delay:.04s}
+  .entry:nth-child(2){animation-delay:.12s}
+  .entry:nth-child(3){animation-delay:.2s}
+  @keyframes rise{from{opacity:0;transform:translateY(24px)}}
+  .entry::after{content:'';position:absolute;top:0;left:0;right:0;height:45%;
+    background:linear-gradient(rgba(255,255,255,.25),transparent);pointer-events:none}
+  .entry:active{transform:scale(.96);box-shadow:0 6px 16px rgba(0,0,0,.16)}
+  .entry .em{font-size:48px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.18))}
+  .e-audio{background:linear-gradient(135deg,#F6D365,#FDA085)}
+  .e-video{background:linear-gradient(135deg,#84FAB0,#8FD3F4)}
+  .e-game{background:linear-gradient(135deg,#A18CD1,#FBC2EB)}
+  /* 网格 */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px}
+  .card{border:none;border-radius:22px;overflow:hidden;cursor:pointer;padding:0;
+    background:rgba(255,255,255,.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 4px 16px rgba(0,0,0,.1);transition:transform .12s,box-shadow .12s;
+    animation:rise .4s cubic-bezier(.2,.8,.2,1) backwards}
+  .card:active{transform:scale(.94);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .card img{width:100%;aspect-ratio:1;display:block;object-fit:cover}
+  .card .t{padding:9px 7px;font-size:13px;font-weight:600;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sub{font-size:18px;font-weight:800;margin:6px 4px 14px;color:#5a5a6a}
+  .empty{text-align:center;padding:60px 20px;color:#8a8a9a;font-size:15px;line-height:1.8}
+  /* 骨架屏 */
+  .skel{border-radius:22px;aspect-ratio:1;height:auto;
+    background:linear-gradient(100deg,rgba(255,255,255,.4) 30%,rgba(255,255,255,.8) 50%,rgba(255,255,255,.4) 70%);
+    background-size:200% 100%;animation:shimmer 1.3s infinite}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  /* 播放器 */
+  #player{position:fixed;inset:0;background:rgba(20,18,30,.96);z-index:100;
+    display:none;flex-direction:column;color:#fff;
+    padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom)}
+  #player.show{display:flex}
+  #player .close{align-self:flex-end;background:rgba(255,255,255,.15);border:none;color:#fff;
+    width:44px;height:44px;border-radius:50%;font-size:22px;cursor:pointer;margin:14px 0}
+  #player .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+  #player img{width:60vw;max-width:280px;aspect-ratio:1;border-radius:28px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #player video{width:100%;max-height:60vh;border-radius:16px;background:#000}
+  #player .pt{font-size:18px;font-weight:700;text-align:center}
+  #player audio{width:100%;max-width:420px}
+  /* 用眼提醒 */
+  #rest{position:fixed;inset:0;background:rgba(10,10,20,.92);z-index:200;display:none;
+    flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:20px;text-align:center;padding:30px}
+  #rest.show{display:flex}
+  #rest .big{font-size:60px}
+  #rest button{margin-top:10px;padding:12px 28px;border:none;border-radius:14px;
+    background:#84FAB0;color:#1a3a2a;font-size:16px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="back" onclick="goHome()">←</button>
+    <h1 id="title">宝宝乐园</h1>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="player">
+  <button class="close" onclick="closePlayer()">✕</button>
+  <div class="stage" id="stage"></div>
+</div>
+
+<div id="rest">
+  <div class="big">🌳👀</div>
+  <div style="font-size:20px;font-weight:700">休息一下，看看远方吧</div>
+  <div style="opacity:.7">已经玩了 20 分钟啦</div>
+  <button onclick="dismissRest()">好的，再玩一会</button>
+</div>
+
+<script>
+const main = document.getElementById('main');
+const titleEl = document.getElementById('title');
+const backBtn = document.getElementById('back');
+
+// ── 入口首页 ──
+const ENTRIES = [
+  { k:'audio', cls:'e-audio', em:'🎵', label:'听' , sub:'儿歌 · 故事 · 古诗' },
+  { k:'video', cls:'e-video', em:'🎬', label:'看' , sub:'动画 · 纪录片' },
+  { k:'game',  cls:'e-game',  em:'🎮', label:'玩' , sub:'戳泡泡 · 敲敲乐 · 弹琴' },
+];
+
+const GAMES = [
+  { id:'bubbles', em:'🫧', name:'戳泡泡' },
+  { id:'drum',    em:'🥁', name:'敲敲乐' },
+  { id:'piano',   em:'🎹', name:'弹琴'  },
+];
+
+function goHome() {
+  titleEl.textContent = '宝宝乐园';
+  backBtn.classList.remove('show');
+  main.innerHTML = `<div class="home">${ENTRIES.map(e=>`
+    <button class="entry ${e.cls}" onclick="openEntry('${e.k}')">
+      <span class="em">${e.em}</span>
+      <span><div>${e.label}</div><div style="font-size:13px;font-weight:500;opacity:.9">${e.sub}</div></span>
+    </button>`).join('')}</div>`;
+}
+
+function openEntry(k) {
+  backBtn.classList.add('show');
+  if (k === 'game') return showGames();
+  showSubs(k);
+}
+
+function showGames() {
+  titleEl.textContent = '玩一玩';
+  main.innerHTML = `<div class="grid">${GAMES.map(g=>`
+    <button class="card" onclick="openGame('${g.id}')">
+      <div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:54px">${g.em}</div>
+      <div class="t">${g.name}</div></button>`).join('')}</div>`;
+}
+
+function openGame(id) {
+  startUseTimer();
+  location.href = `/games/${id}/`;
+}
+
+function skeletons(n){
+  return `<div class="grid">${Array.from({length:n},()=>'<div class="card skel"></div>').join('')}</div>`;
+}
+
+async function showSubs(cat) {
+  titleEl.textContent = cat === 'audio' ? '听一听' : '看一看';
+  main.innerHTML = skeletons(8);
+  const subs = await fetch(`/api/subs?cat=${cat}`).then(r=>r.json()).catch(()=>[]);
+  if (!subs || !subs.length) {
+    main.innerHTML = `<div class="empty">还没有内容<br><small>请在 NAS 对应目录放入文件后扫描</small></div>`;
+    return;
+  }
+  main.innerHTML = `<div class="grid">${subs.map(s=>`
+    <button class="card" onclick="showList('${cat}','${encodeURIComponent(s.sub)}')">
+      <div style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        background:linear-gradient(135deg,#FFECD2,#FCB69F);font-size:40px">📁<span style="font-size:12px;color:#7a5a3a">${s.count}</span></div>
+      <div class="t">${s.sub || '未分类'}</div></button>`).join('')}</div>`;
+}
+
+let listState = { cat:'', sub:'', page:0, loading:false, done:false };
+async function showList(cat, subEnc) {
+  const sub = decodeURIComponent(subEnc);
+  listState = { cat, sub, page:0, loading:false, done:false };
+  titleEl.textContent = sub || '全部';
+  main.innerHTML = skeletons(12);
+  main.onscroll = onListScroll;
+  // 首屏数据到达后替换骨架
+  await loadMore(true);
+}
+
+async function loadMore(first) {
+  if (listState.loading || listState.done) return;
+  listState.loading = true;
+  const { cat, sub, page } = listState;
+  const data = await fetch(`/api/list?cat=${cat}&sub=${encodeURIComponent(sub)}&page=${page}`).then(r=>r.json());
+  // 首屏：用真实网格替换骨架
+  if (first) main.innerHTML = `<div class="grid" id="listgrid"></div>`;
+  const grid = document.getElementById('listgrid');
+  if (!grid) { listState.loading = false; return; }
+  if (first && (!data.items || !data.items.length)) {
+    main.innerHTML = `<div class="empty">这个分类还没有内容</div>`;
+    listState.done = true; listState.loading = false; return;
+  }
+  (data.items||[]).forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'card';
+    b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${m.title}</div>`;
+    b.onclick = () => playMedia(m);
+    grid.appendChild(b);
+  });
+  if (!data.items || data.items.length < data.pageSize) listState.done = true;
+  listState.page++;
+  listState.loading = false;
+}
+
+function onListScroll() {
+  if (main.scrollTop + main.clientHeight > main.scrollHeight - 300) loadMore();
+}
+
+// ── 播放器 ──
+const player = document.getElementById('player');
+const stage = document.getElementById('stage');
+function playMedia(m) {
+  startUseTimer();
+  player.classList.add('show');
+  if (m.category === 'video') {
+    stage.innerHTML = `<video src="/api/stream/${m.id}" controls autoplay playsinline></video>
+      <div class="pt">${m.title}</div>`;
+  } else {
+    stage.innerHTML = `<img src="/api/cover/${m.id}" alt="">
+      <div class="pt">${m.title}</div>
+      <audio src="/api/stream/${m.id}" controls autoplay></audio>`;
+  }
+}
+function closePlayer() {
+  player.classList.remove('show');
+  stage.innerHTML = '';
+}
+
+// ── 用眼时间提醒（20 分钟）──
+let useTimer = null;
+function startUseTimer() {
+  if (useTimer) return;
+  useTimer = setTimeout(() => {
+    document.getElementById('rest').classList.add('show');
+    closePlayer();
+    useTimer = null;
+  }, 20*60*1000);
+}
+function dismissRest() {
+  document.getElementById('rest').classList.remove('show');
+}
+
+goHome();
+</script>
+</body>
+</html>

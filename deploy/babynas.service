@@ -1,0 +1,21 @@
+# systemd 服务单元 —— 放到 /etc/systemd/system/babynas.service
+# 启用: sudo systemctl enable --now babynas
+[Unit]
+Description=babynas 婴幼儿家庭媒体服务
+After=network.target
+
+[Service]
+Type=simple
+# 按实际路径修改：二进制、媒体目录、数据库
+ExecStart=/opt/babynas/babynas \
+  -addr :8088 \
+  -audio /volume1/media/音频 \
+  -video /volume1/media/视频 \
+  -db /opt/babynas/babynas.db \
+  -pin 1234
+WorkingDirectory=/opt/babynas
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

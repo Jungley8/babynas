@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>敲敲乐</title>
+<style>
+  *{margin:0;padding:0;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#2a2440;user-select:none;-webkit-user-select:none;touch-action:none}
+  #home{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:14px;z-index:10;
+    width:44px;height:44px;border:none;border-radius:50%;background:rgba(255,255,255,.7);
+    font-size:22px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  #grid{height:100%;height:100dvh;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);
+    gap:8px;padding:8px;padding-top:calc(env(safe-area-inset-top) + 8px)}
+  .pad{border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:64px;
+    box-shadow:inset 0 -6px 12px rgba(0,0,0,.2);transition:transform .06s,filter .06s;cursor:pointer}
+  .pad.hit{transform:scale(.94);filter:brightness(1.3)}
+</style>
+</head>
+<body>
+<button id="home" onclick="location.href='/'">←</button>
+<div id="grid"></div>
+<script>
+let AC;
+function ac(){AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC;}
+// 6 个不同乐器音色
+const PADS=[
+  {em:'🥁',bg:'#FF8FB1',f:120,type:'sine',dur:0.3},   // 鼓
+  {em:'🔔',bg:'#FFD66B',f:880,type:'sine',dur:0.6},   // 铃
+  {em:'🎺',bg:'#7FD8BE',f:440,type:'sawtooth',dur:0.4},// 号
+  {em:'🎹',bg:'#9DB8FF',f:523,type:'triangle',dur:0.5},// 琴
+  {em:'🪘',bg:'#C49BFF',f:200,type:'square',dur:0.25}, // 手鼓
+  {em:'🎵',bg:'#FFA07A',f:659,type:'sine',dur:0.5},    // 音符
+];
+function playPad(p){
+  const a=ac(),t=a.currentTime,o=a.createOscillator(),g=a.createGain();
+  o.type=p.type;o.frequency.setValueAtTime(p.f,t);
+  if(p.type==='sine'&&p.f<300)o.frequency.exponentialRampToValueAtTime(p.f*0.5,t+p.dur);
+  o.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(0.45,t);g.gain.exponentialRampToValueAtTime(0.001,t+p.dur);
+  o.start(t);o.stop(t+p.dur+0.05);
+  if(navigator.vibrate)navigator.vibrate(25);
+}
+const grid=document.getElementById('grid');
+PADS.forEach(p=>{
+  const d=document.createElement('div');
+  d.className='pad';d.style.background=p.bg;d.textContent=p.em;
+  const hit=e=>{e.preventDefault();playPad(p);d.classList.add('hit');setTimeout(()=>d.classList.remove('hit'),90);};
+  d.addEventListener('touchstart',hit,{passive:false});
+  d.addEventListener('mousedown',hit);
+  grid.appendChild(d);
+});
+</script>
+</body>
+</html>
