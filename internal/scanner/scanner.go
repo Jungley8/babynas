@@ -97,6 +97,11 @@ func (s *Scanner) Scan() error {
 				}
 				return nil
 			}
+			name := d.Name()
+			// 跳过 macOS AppleDouble 资源派生文件(._xxx)与隐藏文件
+			if strings.HasPrefix(name, "._") || strings.HasPrefix(name, ".") {
+				return nil
+			}
 			ext := strings.ToLower(filepath.Ext(p))
 			if !extSet[ext] {
 				return nil

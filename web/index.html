@@ -101,6 +101,70 @@
   .g-card button{margin-top:22px;width:100%;padding:15px;border:none;border-radius:16px;
     background:linear-gradient(135deg,#F6D365,#FDA085);color:#fff;font-size:16px;font-weight:800;cursor:pointer}
 
+  /* 首页次级入口：收藏 / 歌单 */
+  .home-sub{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .entry2{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;border-radius:22px;
+    border:none;cursor:pointer;font-size:18px;font-weight:800;color:#fff;
+    box-shadow:0 6px 16px rgba(0,0,0,.12);transition:transform .12s;animation:rise .5s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:.26s}
+  .entry2:active{transform:scale(.96)}
+  .entry2 .em{font-size:26px}
+  .e-fav{background:linear-gradient(135deg,#FF9A9E,#FAD0C4)}
+  .e-list{background:linear-gradient(135deg,#A1C4FD,#C2B0FB)}
+
+  /* 标签切换（收藏的 音频/视频）*/
+  .tabs{display:flex;gap:10px;margin-bottom:14px}
+  .tab{flex:1;padding:11px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;
+    background:rgba(255,255,255,.55);color:#6a6a7a;transition:all .15s}
+  .tab.on{background:linear-gradient(135deg,#FF9A9E,#FAD0C4);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+
+  /* 操作条（播放全部 / 新建歌单）*/
+  .actbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .act{display:inline-flex;align-items:center;gap:7px;padding:11px 18px;border:none;border-radius:16px;cursor:pointer;
+    font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,#84FAB0,#8FD3F4);
+    box-shadow:0 4px 12px rgba(0,0,0,.1);transition:transform .12s}
+  .act:active{transform:scale(.95)}
+  .act.sec{background:linear-gradient(135deg,#A18CD1,#FBC2EB)}
+
+  /* 卡片角标：收藏红心 / 列表行删除 */
+  .card{position:relative}
+  .card .heart{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:none;
+    background:rgba(0,0,0,.28);color:#fff;font-size:15px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center}
+  .card .heart.on{color:#FF5A6E}
+
+  /* 歌单行 */
+  .row{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;cursor:pointer;
+    background:rgba(255,255,255,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    margin-bottom:10px;box-shadow:0 3px 10px rgba(0,0,0,.07)}
+  .row .em{font-size:30px}
+  .row .meta{flex:1;min-width:0}
+  .row .meta .nm{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .meta .ct{font-size:12px;color:#8a8a9a}
+  .row .del{border:none;background:rgba(255,80,80,.15);color:#e8506e;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0}
+
+  /* 播放器控制条 */
+  #player .controls{display:flex;align-items:center;justify-content:center;gap:18px;padding:18px 0 8px}
+  #player .controls button{border:none;background:rgba(255,255,255,.14);color:#fff;border-radius:50%;
+    width:56px;height:56px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s}
+  #player .controls button:active{transform:scale(.9)}
+  #player .controls .heart.on{color:#FF5A6E}
+  #player .controls button:disabled{opacity:.3}
+
+  /* 底部选择歌单浮层 */
+  #sheet{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
+    background:rgba(20,18,30,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  #sheet.show{display:flex}
+  .sheet-card{background:#fff;width:100%;max-width:560px;margin:0 auto;border-radius:26px 26px 0 0;
+    padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);max-height:75vh;overflow-y:auto;animation:slideup .25s ease}
+  @keyframes slideup{from{transform:translateY(100%)}}
+  .sheet-card h3{font-size:18px;margin-bottom:14px;text-align:center}
+  .sheet-card .row{background:#f4f4f8}
+
+  /* 轻提示 toast */
+  #toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 80px);left:50%;transform:translateX(-50%) translateY(20px);
+    background:rgba(20,18,30,.9);color:#fff;padding:11px 20px;border-radius:22px;font-size:14px;font-weight:600;
+    z-index:500;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
   /* ── iPad / 平板适配（≥768px）：放大布局与触摸目标 ── */
   @media (min-width:768px){
     #app{max-width:920px}
@@ -164,7 +228,18 @@
 <div id="player">
   <button class="close" onclick="closePlayer()">✕</button>
   <div class="stage" id="stage"></div>
+  <div class="controls" id="controls">
+    <button id="c-prev" title="上一首">⏮</button>
+    <button id="c-fav" class="heart" title="收藏">♡</button>
+    <button id="c-add" title="加入歌单">➕</button>
+    <button id="c-next" title="下一首">⏭</button>
+  </div>
 </div>
+
+<div id="sheet">
+  <div class="sheet-card" id="sheet-card"></div>
+</div>
+<div id="toast"></div>
 
 <div id="rest">
   <div class="big">🌳👀</div>
@@ -203,7 +278,12 @@ function goHome() {
     <button class="entry ${e.cls}" onclick="openEntry('${e.k}')">
       <span class="em">${e.em}</span>
       <span><div>${e.label}</div><div style="font-size:13px;font-weight:500;opacity:.9">${e.sub}</div></span>
-    </button>`).join('')}</div>`;
+    </button>`).join('')}
+    <div class="home-sub">
+      <button class="entry2 e-fav"  onclick="showFavs()"><span class="em">⭐</span>收藏</button>
+      <button class="entry2 e-list" onclick="showPlaylists()"><span class="em">📋</span>歌单</button>
+    </div>
+  </div>`;
 }
 
 function openEntry(k) {
@@ -288,13 +368,14 @@ let bState = { cat:'', path:'', page:0, loading:false, done:false, grid:null };
 
 async function browse(cat, path) {
   nav.active = true; nav.cat = cat; nav.path = path;
-  bState = { cat, path, page:0, loading:false, done:false, grid:null };
+  bState = { cat, path, page:0, loading:false, done:false, grid:null, files:[] };
   backBtn.classList.add('show');
   const name = path ? path.slice(path.lastIndexOf('/') + 1) : CAT_ROOT[cat];
   titleEl.textContent = name;
   try{history.replaceState(null,'',`#${cat}:${path}`);}catch(e){}
   main.innerHTML = skeletons(12);
   main.onscroll = onBrowseScroll;
+  await loadFavIDs(cat); // 进入目录前加载收藏，红心即时显示
   await loadBrowsePage(true);
 }
 
@@ -306,12 +387,29 @@ function makeFolderCard(cat, path, f) {
   b.onclick = () => browse(cat, sub);
   return b;
 }
-function makeFileCard(m) {
+function makeFileCard(m, list, noHeart) {
   const b = document.createElement('button');
   b.className = 'card';
   b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${esc(m.title)}</div>`;
-  b.onclick = () => playMedia(m);
+  b.onclick = () => playMedia(m, list);
+  if (!noHeart) {
+    const h = document.createElement('button');
+    h.className = 'heart' + (favSet.has(m.id) ? ' on' : '');
+    h.textContent = favSet.has(m.id) ? '♥' : '♡';
+    h.title = '收藏';
+    h.onclick = (e) => { e.stopPropagation(); toggleFav(m, h); };
+    b.appendChild(h);
+  }
   return b;
+}
+
+// 整个目录播放（递归，作临时歌单）
+async function playDir(cat, path) {
+  toast('正在加载…');
+  const d = await fetch(`/api/queue?cat=${cat}&path=${encodeURIComponent(path)}`).then(r=>r.json()).catch(()=>({items:[]}));
+  const items = d.items || [];
+  if (!items.length) { toast('这个目录没有可播放的内容'); return; }
+  playQueue(items, 0);
 }
 
 async function loadBrowsePage(first) {
@@ -334,14 +432,21 @@ async function loadBrowsePage(first) {
       main.innerHTML = `<div class="empty">这里还没有内容<br><small>在 NAS 对应目录放入文件后重新扫描</small></div>`;
       bState.done = true; bState.loading = false; return;
     }
+    main.innerHTML = '';
+    // 播放全部（递归整目录作临时歌单）
+    const bar = document.createElement('div');
+    bar.className = 'actbar';
+    bar.innerHTML = `<button class="act" onclick="playDir('${cat}','${path.replace(/'/g,"\\'")}')">▶️ 播放全部</button>`;
+    main.appendChild(bar);
     const grid = document.createElement('div');
     grid.className = 'grid';
     folders.forEach(f => grid.appendChild(makeFolderCard(cat, path, f))); // 文件夹仅首页返回
-    main.innerHTML = ''; main.appendChild(grid);
+    main.appendChild(grid);
     main.scrollTop = 0;
     bState.grid = grid;
   }
-  files.forEach(m => bState.grid.appendChild(makeFileCard(m)));
+  // 累积文件到 bState.files，点击时整组作为播放队列（连播/上下首）
+  files.forEach(m => { bState.files.push(m); bState.grid.appendChild(makeFileCard(m, bState.files)); });
   if (!data.hasMore) bState.done = true;
   bState.page++;
   bState.loading = false;
@@ -360,7 +465,36 @@ const MEDIA_ERR = {
   3:'解码失败（文件损坏或编码不被浏览器支持）',
   4:'格式不支持（该编码浏览器无法播放，建议转码为 H.264/AAC 或 MP3）'
 };
-function playMedia(m) {
+// 播放队列：clicking 单曲也会带上当前列表作队列，支持上一首/下一首/自动连播
+let queue = [], qIndex = 0, curItems = [];
+const cPrev = document.getElementById('c-prev');
+const cNext = document.getElementById('c-next');
+const cFav  = document.getElementById('c-fav');
+const cAdd  = document.getElementById('c-add');
+
+// 以队列方式播放：list 为媒体数组，index 为起始位置
+function playQueue(list, index) {
+  queue = list || [];
+  qIndex = index || 0;
+  if (!queue.length) return;
+  playCurrent();
+}
+function playCurrent() { renderPlayer(queue[qIndex]); }
+function playNext() { if (qIndex < queue.length - 1) { qIndex++; playCurrent(); } }
+function playPrev() { if (qIndex > 0) { qIndex--; playCurrent(); } }
+cPrev.onclick = playPrev;
+cNext.onclick = playNext;
+cFav.onclick  = () => toggleFav(queue[qIndex], cFav);
+cAdd.onclick  = () => openSheet(queue[qIndex]);
+
+// 单个播放入口（卡片点击）：把所在列表作为队列
+function playMedia(m, list) {
+  const arr = list && list.length ? list : [m];
+  const idx = Math.max(0, arr.findIndex(x => x.id === m.id));
+  playQueue(arr, idx);
+}
+
+function renderPlayer(m) {
   startUseTimer();
   player.classList.add('show');
   const src = `/api/stream/${m.id}`;
@@ -371,9 +505,9 @@ function playMedia(m) {
 
   const info = document.createElement('div');
   info.className = 'pt';
-  info.textContent = m.title;
+  info.innerHTML = `${esc(m.title)}` +
+    (queue.length > 1 ? `<div style="font-size:13px;font-weight:500;opacity:.6;margin-top:4px">${qIndex+1} / ${queue.length}</div>` : '');
 
-  // 播放失败时显示真实错误码，便于定位（而非静默 0:00）
   const showErr = (msg) => {
     const e = document.createElement('div');
     e.style.cssText = 'margin-top:14px;padding:12px 16px;background:rgba(255,80,80,.18);border-radius:12px;font-size:13px;line-height:1.6;color:#ffd0d0;max-width:420px;text-align:center';
@@ -384,7 +518,8 @@ function playMedia(m) {
     const code = el.error ? el.error.code : 0;
     showErr(MEDIA_ERR[code] || ('未知错误（code '+code+'）'));
   });
-  el.addEventListener('stalled', () => console.warn('media stalled', src));
+  // 播完自动下一首（队列连播）
+  el.addEventListener('ended', playNext);
 
   if (m.category === 'video') {
     stage.appendChild(el); stage.appendChild(info);
@@ -393,13 +528,152 @@ function playMedia(m) {
     img.src = `/api/cover/${m.id}`; img.alt = '';
     stage.appendChild(img); stage.appendChild(info); stage.appendChild(el);
   }
-  // autoplay 被策略拦截时不算错误，用户点播放键即可
   const p = el.play && el.play();
   if (p && p.catch) p.catch(() => {});
+
+  // 更新控制条状态
+  cPrev.disabled = qIndex <= 0;
+  cNext.disabled = qIndex >= queue.length - 1;
+  cFav.textContent = favSet.has(m.id) ? '♥' : '♡';
+  cFav.classList.toggle('on', favSet.has(m.id));
 }
 function closePlayer() {
   player.classList.remove('show');
   stage.innerHTML = '';
+}
+
+// ── 收藏 ──
+let favSet = new Set();      // 当前已加载分类的收藏 id
+async function loadFavIDs(cat) {
+  try {
+    const d = await fetch(`/api/favs/ids?cat=${cat}`).then(r=>r.json());
+    favSet = new Set(d.ids || []);
+  } catch(e) { favSet = new Set(); }
+}
+async function toggleFav(m, btn) {
+  if (!m) return;
+  vibrate(20);
+  const d = await fetch(`/api/fav/${m.id}`, {method:'POST'}).then(r=>r.json()).catch(()=>null);
+  if (!d) return;
+  if (d.fav) { favSet.add(m.id); toast('已收藏 ⭐'); }
+  else { favSet.delete(m.id); toast('已取消收藏'); }
+  if (btn) { btn.textContent = d.fav ? '♥' : '♡'; btn.classList.toggle('on', d.fav); }
+}
+
+// ── 收藏视图（音频/视频分页签）──
+let favCat = 'audio';
+async function showFavs(cat) {
+  favCat = cat || favCat;
+  nav.active = false;
+  backBtn.classList.add('show');
+  titleEl.textContent = '我的收藏';
+  try{history.replaceState(null,'','#favs');}catch(e){}
+  main.innerHTML = `<div class="tabs">
+      <button class="tab ${favCat==='audio'?'on':''}" onclick="showFavs('audio')">🎵 音频</button>
+      <button class="tab ${favCat==='video'?'on':''}" onclick="showFavs('video')">🎬 视频</button>
+    </div><div id="fav-body">${skeletons(6)}</div>`;
+  await loadFavIDs(favCat);
+  const d = await fetch(`/api/favs?cat=${favCat}`).then(r=>r.json()).catch(()=>({items:[]}));
+  const items = d.items || [];
+  const body = document.getElementById('fav-body');
+  if (!body) return;
+  if (!items.length) { body.innerHTML = `<div class="empty">还没有收藏<br><small>播放时点 ♡ 即可收藏</small></div>`; return; }
+  const grid = document.createElement('div'); grid.className = 'grid';
+  items.forEach(m => grid.appendChild(makeFileCard(m, items)));
+  body.innerHTML = ''; body.appendChild(grid);
+}
+
+// ── 歌单视图 ──
+async function showPlaylists() {
+  nav.active = false;
+  backBtn.classList.add('show');
+  titleEl.textContent = '我的歌单';
+  try{history.replaceState(null,'','#playlists');}catch(e){}
+  main.innerHTML = `<div class="actbar"><button class="act sec" onclick="createPlaylist()">➕ 新建歌单</button></div><div id="pl-body">${skeletons(4)}</div>`;
+  const d = await fetch('/api/playlists').then(r=>r.json()).catch(()=>({playlists:[]}));
+  const pls = d.playlists || [];
+  const body = document.getElementById('pl-body');
+  if (!body) return;
+  if (!pls.length) { body.innerHTML = `<div class="empty">还没有歌单<br><small>点上方「新建歌单」创建</small></div>`; return; }
+  body.innerHTML = pls.map(p => `
+    <div class="row" onclick="showPlaylist(${p.id}, '${esc(p.name).replace(/'/g,"\\'")}')">
+      <span class="em">📋</span>
+      <div class="meta"><div class="nm">${esc(p.name)}</div><div class="ct">${p.count} 首</div></div>
+      <button class="del" onclick="event.stopPropagation();deletePlaylist(${p.id},'${esc(p.name).replace(/'/g,"\\'")}')">🗑</button>
+    </div>`).join('');
+}
+
+async function createPlaylist() {
+  const name = prompt('给歌单起个名字：', '');
+  if (!name || !name.trim()) return;
+  await fetch('/api/playlists', {method:'POST', body:JSON.stringify({name:name.trim()})}).catch(()=>{});
+  toast('歌单已创建'); showPlaylists();
+}
+async function deletePlaylist(id, name) {
+  if (!confirm(`删除歌单「${name}」？（不影响原文件）`)) return;
+  await fetch(`/api/playlists/${id}`, {method:'DELETE'}).catch(()=>{});
+  toast('已删除'); showPlaylists();
+}
+
+async function showPlaylist(id, name) {
+  backBtn.classList.add('show');
+  titleEl.textContent = name || '歌单';
+  await loadFavIDs('audio'); // 歌单多为音频，红心标记
+  const d = await fetch(`/api/playlists/${id}`).then(r=>r.json()).catch(()=>({items:[]}));
+  const items = d.items || [];
+  if (!items.length) { main.innerHTML = `<div class="empty">这个歌单还是空的<br><small>在收藏或目录里把音频加入歌单</small></div>`; return; }
+  curItems = items;
+  main.innerHTML = `<div class="actbar"><button class="act" onclick="playQueue(curItems,0)">▶️ 播放全部</button></div>`;
+  const grid = document.createElement('div'); grid.className = 'grid';
+  items.forEach(m => {
+    const c = makeFileCard(m, items);
+    const del = document.createElement('button');
+    del.className = 'heart'; del.textContent = '✕'; del.title = '移出歌单';
+    del.onclick = async (e) => { e.stopPropagation(); await fetch(`/api/playlists/${id}/items/${m.id}`,{method:'DELETE'}).catch(()=>{}); toast('已移出'); showPlaylist(id, name); };
+    c.appendChild(del);
+    grid.appendChild(c);
+  });
+  main.appendChild(grid);
+}
+
+// ── 加入歌单浮层 ──
+async function openSheet(m) {
+  if (!m) return;
+  const sheet = document.getElementById('sheet');
+  const card = document.getElementById('sheet-card');
+  card.innerHTML = `<h3>加入歌单</h3><div id="sheet-list">${skeletons(3)}</div>
+    <button class="act sec" style="width:100%;justify-content:center;margin-top:6px" onclick="sheetCreate()">➕ 新建歌单</button>`;
+  sheet.classList.add('show');
+  const d = await fetch('/api/playlists').then(r=>r.json()).catch(()=>({playlists:[]}));
+  const pls = d.playlists || [];
+  const list = document.getElementById('sheet-list');
+  list.innerHTML = pls.length ? pls.map(p=>`
+    <div class="row" onclick="addToPlaylist(${p.id})">
+      <span class="em">📋</span><div class="meta"><div class="nm">${esc(p.name)}</div><div class="ct">${p.count} 首</div></div>
+    </div>`).join('') : `<div class="empty" style="padding:20px">还没有歌单，先新建一个</div>`;
+  sheet._media = m;
+}
+function closeSheet(){ document.getElementById('sheet').classList.remove('show'); }
+document.getElementById('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
+async function addToPlaylist(plID) {
+  const m = document.getElementById('sheet')._media;
+  await fetch(`/api/playlists/${plID}/items`, {method:'POST', body:JSON.stringify({mediaId:m.id})}).catch(()=>{});
+  closeSheet(); toast('已加入歌单 ✓');
+}
+async function sheetCreate() {
+  const name = prompt('新歌单名字：', '');
+  if (!name || !name.trim()) return;
+  const d = await fetch('/api/playlists', {method:'POST', body:JSON.stringify({name:name.trim()})}).then(r=>r.json()).catch(()=>null);
+  if (d && d.id) { await addToPlaylist(d.id); }
+}
+
+// ── 轻提示 ──
+let toastT = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 1600);
 }
 
 // ── 用眼时间提醒（20 分钟）──
@@ -428,6 +702,8 @@ function maybeShowGuide(){
 
 // 启动路由：从游戏退出会带 #games，直接回到游戏列表
 if (location.hash === '#games') showGames();
+else if (location.hash === '#favs') showFavs();
+else if (location.hash === '#playlists') showPlaylists();
 else goHome();
 maybeShowGuide();
 

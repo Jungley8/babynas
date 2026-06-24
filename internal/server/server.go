@@ -45,6 +45,20 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/stream/{id}", s.handleStream)
 	mux.HandleFunc("GET /api/scan/status", s.handleScanStatus)
 	mux.HandleFunc("POST /api/scan", s.handleScanStart) // 需 PIN
+	mux.HandleFunc("GET /api/queue", s.handleQueue)     // ?cat=&path= 整目录(递归)队列
+
+	// ── 收藏 ──
+	mux.HandleFunc("GET /api/favs", s.handleFavs)         // ?cat= 收藏列表
+	mux.HandleFunc("GET /api/favs/ids", s.handleFavIDs)   // ?cat= 收藏的 id 集合
+	mux.HandleFunc("POST /api/fav/{id}", s.handleFavToggle) // 切换收藏
+
+	// ── 歌单 ──
+	mux.HandleFunc("GET /api/playlists", s.handlePlaylists)
+	mux.HandleFunc("POST /api/playlists", s.handlePlaylistCreate)
+	mux.HandleFunc("GET /api/playlists/{id}", s.handlePlaylistGet)
+	mux.HandleFunc("DELETE /api/playlists/{id}", s.handlePlaylistDelete)
+	mux.HandleFunc("POST /api/playlists/{id}/items", s.handlePlaylistAdd)
+	mux.HandleFunc("DELETE /api/playlists/{id}/items/{mid}", s.handlePlaylistRemove)
 
 	// ── 前端 + 游戏（静态，由 embed.FS 提供）──
 	mux.Handle("/", s.web)
@@ -173,6 +187,136 @@ func (s *Server) handleScanStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go s.scan.Scan() // 后台异步扫描，立即返回
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// handleQueue 返回整个目录（递归）的文件，作为"整目录播放"的临时歌单。
+func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	cat := q.Get("cat")
+	path := strings.Trim(q.Get("path"), "/")
+	const max = 2000 // 上限，防超大目录
+	items, err := s.db.QueueUnder(cat, path, max)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if items == nil {
+		items = []db.Media{}
+	}
+	writeJSON(w, map[string]any{"items": items})
+}
+
+// ── 收藏 ──
+
+func (s *Server) handleFavs(w http.ResponseWriter, r *http.Request) {
+	items, err := s.db.Favs(r.URL.Query().Get("cat"))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if items == nil {
+		items = []db.Media{}
+	}
+	writeJSON(w, map[string]any{"items": items})
+}
+
+func (s *Server) handleFavIDs(w http.ResponseWriter, r *http.Request) {
+	ids, err := s.db.FavIDs(r.URL.Query().Get("cat"))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if ids == nil {
+		ids = []int64{}
+	}
+	writeJSON(w, map[string]any{"ids": ids})
+}
+
+func (s *Server) handleFavToggle(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	fav, err := s.db.FavToggle(id, time.Now().Unix())
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, map[string]any{"fav": fav})
+}
+
+// ── 歌单 ──
+
+func (s *Server) handlePlaylists(w http.ResponseWriter, r *http.Request) {
+	pls, err := s.db.Playlists()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if pls == nil {
+		pls = []db.PlaylistInfo{}
+	}
+	writeJSON(w, map[string]any{"playlists": pls})
+}
+
+func (s *Server) handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name string `json:"name"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		http.Error(w, "歌单名不能为空", 400)
+		return
+	}
+	id, err := s.db.PlaylistCreate(name, time.Now().Unix())
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, map[string]any{"id": id, "name": name})
+}
+
+func (s *Server) handlePlaylistGet(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	items, err := s.db.PlaylistItems(id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if items == nil {
+		items = []db.Media{}
+	}
+	writeJSON(w, map[string]any{"items": items})
+}
+
+func (s *Server) handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err := s.db.PlaylistDelete(id); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) handlePlaylistAdd(w http.ResponseWriter, r *http.Request) {
+	plID, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	var body struct {
+		MediaID int64 `json:"mediaId"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	if err := s.db.PlaylistAdd(plID, body.MediaID); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (s *Server) handlePlaylistRemove(w http.ResponseWriter, r *http.Request) {
+	plID, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	mid, _ := strconv.ParseInt(r.PathValue("mid"), 10, 64)
+	if err := s.db.PlaylistRemove(plID, mid); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	writeJSON(w, map[string]any{"ok": true})
 }
 

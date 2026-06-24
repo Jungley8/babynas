@@ -1,7 +1,7 @@
 // babynas Service Worker —— 预缓存应用外壳与全部游戏，离线（离开家庭 NAS）也能玩游戏。
 // 媒体流 /api/* 走网络（依赖 NAS），离线时自然不可用，但不影响游戏。
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `babynas-${VERSION}`;
 
 // 应用外壳 + 自包含游戏（全部为静态资源）
@@ -46,7 +46,23 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 静态资源：缓存优先，回源后顺手缓存
+  // HTML 页面（外壳）：网络优先，保证应用更新即时生效；离线时回落缓存
+  const isHTML = request.mode === 'navigate' ||
+    url.pathname === '/' || url.pathname.endsWith('.html');
+  if (isHTML) {
+    e.respondWith(
+      fetch(request).then(res => {
+        if (res.ok && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(request).then(hit => hit || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 其他静态资源（游戏 / js / svg）：缓存优先，离线可玩
   e.respondWith(
     caches.match(request).then(hit => hit || fetch(request).then(res => {
       if (res.ok && res.type === 'basic') {

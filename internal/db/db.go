@@ -73,6 +73,27 @@ CREATE INDEX IF NOT EXISTS idx_media_cat  ON media(category, sub);
 CREATE INDEX IF NOT EXISTS idx_media_sub  ON media(sub);
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
+
+-- 收藏：media_id 外键到 media，media 被 Prune 删除时连带清理（ON DELETE CASCADE 需 PRAGMA，
+-- 这里靠 JOIN 时 media 不存在自然过滤；额外提供清理）。按 media.category 天然分音/视频。
+CREATE TABLE IF NOT EXISTS favorites (
+  media_id  INTEGER PRIMARY KEY,
+  added_at  INTEGER NOT NULL
+);
+
+-- 歌单
+CREATE TABLE IF NOT EXISTS playlists (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlist_items (
+  playlist_id INTEGER NOT NULL,
+  media_id    INTEGER NOT NULL,
+  pos         INTEGER NOT NULL,
+  PRIMARY KEY(playlist_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pli_pl ON playlist_items(playlist_id, pos);
 `)
 	return err
 }
@@ -188,6 +209,9 @@ type Folder struct {
 
 const mediaCols = `id, path, rel, category, sub, title, ext, size, mtime, seed, added_at`
 
+// mediaColsM 为带 m. 前缀的列，用于与 favorites/playlist_items JOIN（避免 added_at 等列名歧义）。
+const mediaColsM = `m.id, m.path, m.rel, m.category, m.sub, m.title, m.ext, m.size, m.mtime, m.seed, m.added_at`
+
 func scanMedia(rows *sql.Rows) ([]Media, error) {
 	var out []Media
 	for rows.Next() {
@@ -264,4 +288,147 @@ func (d *DB) ByID(id int64) (*Media, error) {
 		return nil, err
 	}
 	return &m, nil
+}
+
+// QueueUnder 返回 category 下 path 目录内（含子目录，递归）的全部文件，
+// 用于"整个目录播放/临时歌单"。按 rel 排序保持目录顺序；上限防超大目录拖垮内存。
+func (d *DB) QueueUnder(category, path string, limit int) ([]Media, error) {
+	q := `SELECT ` + mediaCols + ` FROM media WHERE category=?`
+	args := []any{category}
+	if path != "" {
+		q += ` AND rel LIKE ? ESCAPE '\'`
+		args = append(args, escapeLike(path+"/")+"%")
+	}
+	q += ` ORDER BY rel LIMIT ?`
+	args = append(args, limit)
+	rows, err := d.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanMedia(rows)
+}
+
+// ── 收藏 ──
+
+// FavToggle 切换收藏，返回切换后是否为已收藏。
+func (d *DB) FavToggle(mediaID, now int64) (bool, error) {
+	r, err := d.Exec(`DELETE FROM favorites WHERE media_id=?`, mediaID)
+	if err != nil {
+		return false, err
+	}
+	if n, _ := r.RowsAffected(); n > 0 {
+		return false, nil // 原本已收藏 → 取消
+	}
+	_, err = d.Exec(`INSERT INTO favorites(media_id, added_at) VALUES(?,?)`, mediaID, now)
+	return err == nil, err
+}
+
+// FavIDs 返回某分类下所有收藏的 media_id（前端用来标记红心）。
+func (d *DB) FavIDs(category string) ([]int64, error) {
+	rows, err := d.Query(`
+SELECT f.media_id FROM favorites f JOIN media m ON m.id=f.media_id
+WHERE m.category=? ORDER BY f.added_at DESC`, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// Favs 列出某分类的收藏（按收藏时间倒序），media 已删除的自动排除。
+func (d *DB) Favs(category string) ([]Media, error) {
+	rows, err := d.Query(`
+SELECT `+mediaColsM+` FROM media m JOIN favorites f ON m.id=f.media_id
+WHERE m.category=? ORDER BY f.added_at DESC`, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanMedia(rows)
+}
+
+// ── 歌单 ──
+
+// PlaylistInfo 歌单概要（含曲目数）。
+type PlaylistInfo struct {
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	Count   int    `json:"count"`
+	Created int64  `json:"created"`
+}
+
+func (d *DB) PlaylistCreate(name string, now int64) (int64, error) {
+	r, err := d.Exec(`INSERT INTO playlists(name, created_at) VALUES(?,?)`, name, now)
+	if err != nil {
+		return 0, err
+	}
+	return r.LastInsertId()
+}
+
+func (d *DB) PlaylistDelete(id int64) error {
+	if _, err := d.Exec(`DELETE FROM playlist_items WHERE playlist_id=?`, id); err != nil {
+		return err
+	}
+	_, err := d.Exec(`DELETE FROM playlists WHERE id=?`, id)
+	return err
+}
+
+func (d *DB) PlaylistRename(id int64, name string) error {
+	_, err := d.Exec(`UPDATE playlists SET name=? WHERE id=?`, name, id)
+	return err
+}
+
+// Playlists 列出全部歌单及曲目数。
+func (d *DB) Playlists() ([]PlaylistInfo, error) {
+	rows, err := d.Query(`
+SELECT p.id, p.name, p.created_at, COUNT(i.media_id)
+FROM playlists p LEFT JOIN playlist_items i ON i.playlist_id=p.id
+GROUP BY p.id ORDER BY p.created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PlaylistInfo
+	for rows.Next() {
+		var p PlaylistInfo
+		if err := rows.Scan(&p.ID, &p.Name, &p.Created, &p.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// PlaylistAdd 添加曲目到歌单末尾（已存在则忽略）。
+func (d *DB) PlaylistAdd(plID, mediaID int64) error {
+	var pos int64
+	d.QueryRow(`SELECT COALESCE(MAX(pos),0)+1 FROM playlist_items WHERE playlist_id=?`, plID).Scan(&pos)
+	_, err := d.Exec(`INSERT OR IGNORE INTO playlist_items(playlist_id, media_id, pos) VALUES(?,?,?)`, plID, mediaID, pos)
+	return err
+}
+
+func (d *DB) PlaylistRemove(plID, mediaID int64) error {
+	_, err := d.Exec(`DELETE FROM playlist_items WHERE playlist_id=? AND media_id=?`, plID, mediaID)
+	return err
+}
+
+// PlaylistItems 按加入顺序返回歌单曲目，media 已删除的自动排除。
+func (d *DB) PlaylistItems(plID int64) ([]Media, error) {
+	rows, err := d.Query(`
+SELECT `+mediaColsM+` FROM media m JOIN playlist_items i ON m.id=i.media_id
+WHERE i.playlist_id=? ORDER BY i.pos`, plID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanMedia(rows)
 }
