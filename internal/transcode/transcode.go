@@ -12,7 +12,7 @@ import (
 
 // 浏览器（Chrome/Safari/Edge）可直接解码的编码白名单。
 var okVideo = map[string]bool{"h264": true, "vp8": true, "vp9": true, "av1": true}
-var okAudio = map[string]bool{"aac": true, "mp3": true, "opus": true, "vorbis": true}
+var okAudio = map[string]bool{"aac": true, "mp3": true, "opus": true, "vorbis": true, "flac": true}
 
 // 这些容器即使编码兼容，浏览器也能直接播，无需换壳。
 var okContainer = map[string]bool{".mp4": true, ".m4v": true, ".mov": true, ".webm": true}
@@ -21,9 +21,10 @@ var okContainer = map[string]bool{".mp4": true, ".m4v": true, ".mov": true, ".we
 type Mode int
 
 const (
-	Direct    Mode = iota // 原样发送（支持 Range/拖动）
-	Remux                 // 仅换容器，编码不变（轻量，但流式无法拖动）
-	Transcode             // 重新编码视频（重）
+	Direct         Mode = iota // 原样发送（支持 Range/拖动）
+	Remux                      // 仅换容器，编码不变（轻量，但流式无法拖动）
+	Transcode                  // 重新编码视频（重）
+	TranscodeAudio             // 重新编码音频为 mp3（如 mp2/pcm 假后缀文件）
 )
 
 // Transcoder 转码器，持有 ffmpeg 可用性与探测缓存。
@@ -45,12 +46,19 @@ func New() *Transcoder {
 
 func (t *Transcoder) Available() bool { return t.available }
 
-// Decide 判断某视频文件的处理方式（探测结果带缓存，避免重复 ffprobe）。
-func (t *Transcoder) Decide(path, ext string) Mode {
+// Decide 判断文件的处理方式（探测结果带缓存，避免重复 ffprobe）。
+func (t *Transcoder) Decide(category, path, ext string) Mode {
 	if !t.available {
 		return Direct
 	}
 	pr := t.probe(path)
+	if category == "audio" {
+		// 音频：编码兼容直发；mp2/pcm/wma 等假后缀文件转码为 mp3
+		if okAudio[pr.acodec] {
+			return Direct
+		}
+		return TranscodeAudio
+	}
 	vOK := okVideo[pr.vcodec]
 	aOK := pr.acodec == "" || okAudio[pr.acodec] // 无音轨也算 OK
 	switch {
@@ -86,6 +94,11 @@ func ffprobe(path, stream string) string {
 // Serve 用 ffmpeg 把文件转成分片 MP4 流式输出。Remux 用 -c copy（快），Transcode 重编码视频。
 // 流式输出不支持 Range（无法拖动进度）；婴幼儿短视频可接受，长片建议后续做磁盘缓存。
 func (t *Transcoder) Serve(w http.ResponseWriter, r *http.Request, path string, mode Mode) {
+	// 音频转码：mp2/pcm 等 → mp3，输出 audio/mpeg
+	if mode == TranscodeAudio {
+		t.serveAudio(w, r, path)
+		return
+	}
 	args := []string{"-hide_banner", "-loglevel", "error", "-i", path}
 	if mode == Remux {
 		args = append(args, "-c", "copy")
@@ -118,6 +131,29 @@ func (t *Transcoder) Serve(w http.ResponseWriter, r *http.Request, path string, 
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	// 边转边写；客户端断开时 ctx 取消，ffmpeg 被杀
+	copyFlush(w, stdout)
+	cmd.Wait()
+}
+
+// serveAudio 把 mp2/pcm/wma 等不兼容音频转成 mp3 流式输出。
+func (t *Transcoder) serveAudio(w http.ResponseWriter, r *http.Request, path string) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-hide_banner", "-loglevel", "error", "-i", path,
+		"-vn", "-c:a", "libmp3lame", "-b:a", "128k", "-f", "mp3", "pipe:1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		http.Error(w, "transcode init failed", 500)
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		http.Error(w, "ffmpeg start failed", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
 	copyFlush(w, stdout)
 	cmd.Wait()
 }

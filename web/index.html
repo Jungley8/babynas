@@ -283,53 +283,72 @@ const CAT_ROOT = { audio:'听一听', video:'看一看' };
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 
+// 浏览状态：分页 + 无限滚动（大目录如儿歌 2574 首，旧设备分批渲染防卡顿）
+let bState = { cat:'', path:'', page:0, loading:false, done:false, grid:null };
+
 async function browse(cat, path) {
   nav.active = true; nav.cat = cat; nav.path = path;
+  bState = { cat, path, page:0, loading:false, done:false, grid:null };
   backBtn.classList.add('show');
-  // 标题：根层显示分类名，深层显示当前文件夹名
   const name = path ? path.slice(path.lastIndexOf('/') + 1) : CAT_ROOT[cat];
   titleEl.textContent = name;
   try{history.replaceState(null,'',`#${cat}:${path}`);}catch(e){}
-  main.innerHTML = skeletons(8);
+  main.innerHTML = skeletons(12);
+  main.onscroll = onBrowseScroll;
+  await loadBrowsePage(true);
+}
 
+function makeFolderCard(cat, path, f) {
+  const sub = path ? `${path}/${f.name}` : f.name;
+  const b = document.createElement('button');
+  b.className = 'card';
+  b.innerHTML = `<div class="folder">📁<span class="fc">${f.count}</span></div><div class="t">${esc(f.name)}</div>`;
+  b.onclick = () => browse(cat, sub);
+  return b;
+}
+function makeFileCard(m) {
+  const b = document.createElement('button');
+  b.className = 'card';
+  b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${esc(m.title)}</div>`;
+  b.onclick = () => playMedia(m);
+  return b;
+}
+
+async function loadBrowsePage(first) {
+  if (bState.loading || bState.done) return;
+  bState.loading = true;
+  const { cat, path, page } = bState;
   let data;
   try {
-    data = await fetch(`/api/browse?cat=${cat}&path=${encodeURIComponent(path)}`).then(r=>r.json());
+    data = await fetch(`/api/browse?cat=${cat}&path=${encodeURIComponent(path)}&page=${page}`).then(r=>r.json());
   } catch(e) {
-    main.innerHTML = `<div class="empty">加载失败，请检查与 NAS 的连接</div>`;
-    return;
+    if (first) main.innerHTML = `<div class="empty">加载失败，请检查与 NAS 的连接</div>`;
+    bState.loading = false; return;
   }
-  // 浏览期间用户已离开，丢弃过期结果
+  // 已离开当前目录，丢弃过期结果
   if (!nav.active || nav.cat !== cat || nav.path !== path) return;
 
   const folders = data.folders || [], files = data.files || [];
-  if (!folders.length && !files.length) {
-    main.innerHTML = `<div class="empty">这里还没有内容<br><small>在 NAS 对应目录放入文件后重新扫描</small></div>`;
-    return;
+  if (first) {
+    if (!folders.length && !files.length) {
+      main.innerHTML = `<div class="empty">这里还没有内容<br><small>在 NAS 对应目录放入文件后重新扫描</small></div>`;
+      bState.done = true; bState.loading = false; return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    folders.forEach(f => grid.appendChild(makeFolderCard(cat, path, f))); // 文件夹仅首页返回
+    main.innerHTML = ''; main.appendChild(grid);
+    main.scrollTop = 0;
+    bState.grid = grid;
   }
+  files.forEach(m => bState.grid.appendChild(makeFileCard(m)));
+  if (!data.hasMore) bState.done = true;
+  bState.page++;
+  bState.loading = false;
+}
 
-  const grid = document.createElement('div');
-  grid.className = 'grid';
-  // 先列文件夹（📁 + 计数），点击进入下一层
-  folders.forEach(f => {
-    const sub = path ? `${path}/${f.name}` : f.name;
-    const b = document.createElement('button');
-    b.className = 'card';
-    b.innerHTML = `<div class="folder">📁<span class="fc">${f.count}</span></div><div class="t">${esc(f.name)}</div>`;
-    b.onclick = () => browse(cat, sub);
-    grid.appendChild(b);
-  });
-  // 再列当前层文件（封面 + 标题），点击播放
-  files.forEach(m => {
-    const b = document.createElement('button');
-    b.className = 'card';
-    b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${esc(m.title)}</div>`;
-    b.onclick = () => playMedia(m);
-    grid.appendChild(b);
-  });
-  main.innerHTML = '';
-  main.appendChild(grid);
-  main.scrollTop = 0;
+function onBrowseScroll() {
+  if (main.scrollTop + main.clientHeight > main.scrollHeight - 400) loadBrowsePage(false);
 }
 
 // ── 播放器 ──

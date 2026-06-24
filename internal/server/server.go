@@ -79,12 +79,17 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"items": items, "page": page, "pageSize": pageSize})
 }
 
-// handleBrowse 逐级目录浏览：返回某层的子文件夹与该层直接文件。
+// handleBrowse 逐级目录浏览：返回某层的子文件夹与该层直接文件（文件分页）。
 func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	cat := q.Get("cat")
 	path := strings.Trim(q.Get("path"), "/") // 归一化，去除首尾斜杠
-	folders, files, err := s.db.Browse(cat, path)
+	page, _ := strconv.Atoi(q.Get("page"))
+	if page < 0 {
+		page = 0
+	}
+	const pageSize = 60 // 每页文件数，控制旧设备一次渲染量
+	folders, files, err := s.db.Browse(cat, path, pageSize, page*pageSize)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -95,7 +100,10 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 	if folders == nil {
 		folders = []db.Folder{}
 	}
-	writeJSON(w, map[string]any{"path": path, "folders": folders, "files": files})
+	writeJSON(w, map[string]any{
+		"path": path, "folders": folders, "files": files,
+		"page": page, "pageSize": pageSize, "hasMore": len(files) == pageSize,
+	})
 }
 
 func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
@@ -128,12 +136,11 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	// 视频：编码不被浏览器支持时，用 ffmpeg 动态 remux/转码（ffmpeg 不存在则 Direct 直通）
-	if m.Category == "video" {
-		if mode := s.tc.Decide(m.Path, m.Ext); mode != transcode.Direct {
-			s.tc.Serve(w, r, m.Path, mode)
-			return
-		}
+	// 编码不被浏览器支持时，用 ffmpeg 动态 remux/转码（ffmpeg 不存在则 Direct 直通）：
+	// 视频 H.265→H.264、容器换壳；音频 mp2/pcm 等假后缀文件 →mp3
+	if mode := s.tc.Decide(m.Category, m.Path, m.Ext); mode != transcode.Direct {
+		s.tc.Serve(w, r, m.Path, mode)
+		return
 	}
 
 	f, err := os.Open(m.Path)

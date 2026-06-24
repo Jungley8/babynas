@@ -206,10 +206,10 @@ func escapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
 }
 
-// Browse 浏览 category 下某一层目录 path（"" 为根）：
-// 返回该层的直接子文件夹（带递归计数）与直接位于该层的文件。
+// Browse 浏览 category 下某一层目录 path（"" 为根），文件分页返回。
+// 子文件夹仅在首页(offset==0)返回；文件按 title 排序分页（大目录如儿歌 2574 首防止旧设备卡顿）。
 // 基于 rel 前缀匹配，命中 rel 的 UNIQUE 索引；substr/instr 按字符计数，兼容中文目录名。
-func (d *DB) Browse(category, path string) ([]Folder, []Media, error) {
+func (d *DB) Browse(category, path string, limit, offset int) ([]Folder, []Media, error) {
 	prefix := ""
 	if path != "" {
 		prefix = path + "/"
@@ -217,35 +217,36 @@ func (d *DB) Browse(category, path string) ([]Folder, []Media, error) {
 	like := escapeLike(prefix) + "%"
 	startPos := utf8.RuneCountInString(prefix) + 1 // SQLite substr 为 1 起始、按字符
 
-	// 子文件夹：取剩余路径的第一段，按段聚合计数
-	fRows, err := d.Query(`
+	var folders []Folder
+	if offset == 0 { // 子文件夹只在首页取一次，翻页不重复
+		fRows, err := d.Query(`
 SELECT seg, COUNT(*) FROM (
   SELECT substr(rem, 1, instr(rem, '/') - 1) AS seg FROM (
     SELECT substr(rel, ?) AS rem FROM media
     WHERE category=? AND rel LIKE ? ESCAPE '\'
   ) WHERE instr(rem, '/') > 0
 ) GROUP BY seg ORDER BY seg`, startPos, category, like)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer fRows.Close()
-	var folders []Folder
-	for fRows.Next() {
-		var f Folder
-		if err := fRows.Scan(&f.Name, &f.Count); err != nil {
+		if err != nil {
 			return nil, nil, err
 		}
-		folders = append(folders, f)
-	}
-	if err := fRows.Err(); err != nil {
-		return nil, nil, err
+		defer fRows.Close()
+		for fRows.Next() {
+			var f Folder
+			if err := fRows.Scan(&f.Name, &f.Count); err != nil {
+				return nil, nil, err
+			}
+			folders = append(folders, f)
+		}
+		if err := fRows.Err(); err != nil {
+			return nil, nil, err
+		}
 	}
 
-	// 当前层直接文件：剩余路径中不再含 '/'
+	// 当前层直接文件：剩余路径中不再含 '/'，分页
 	mRows, err := d.Query(`
 SELECT `+mediaCols+` FROM media
 WHERE category=? AND rel LIKE ? ESCAPE '\' AND instr(substr(rel, ?), '/') = 0
-ORDER BY title`, category, like, startPos)
+ORDER BY title LIMIT ? OFFSET ?`, category, like, startPos, limit, offset)
 	if err != nil {
 		return nil, nil, err
 	}
