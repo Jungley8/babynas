@@ -49,9 +49,12 @@ detect_arch() {
 }
 
 # 查询最新 Release tag（无需 jq）
+# 先把响应缓冲到变量再解析：避免 grep -m1/head 提前关闭管道，
+# 导致 curl 收到 SIGPIPE 报 (23) 且在 pipefail 下中断脚本。
 latest_version() {
-  curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-    | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
+  local json
+  json="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest")" || return 1
+  awk -F'"' '/"tag_name"/{print $4; exit}' <<<"$json"
 }
 
 # 下载并解压二进制到 $BIN
