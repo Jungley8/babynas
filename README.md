@@ -62,10 +62,11 @@ make dist        # 生成 linux-amd64 / arm64 / armv7 / darwin 到 dist/
 
 ### 一键安装脚本（Linux systemd，推荐）
 
-自动探测架构、下载对应 Release、安装为 systemd 服务：
+自动探测架构、下载对应 Release、安装为 systemd 服务。脚本随每个 Release 一起发布：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Jungley8/babynas/main/deploy/install.sh -o install.sh
+# 从最新 Release 下载安装脚本
+curl -fsSL https://github.com/Jungley8/babynas/releases/latest/download/install.sh -o install.sh
 chmod +x install.sh
 
 # 首次安装（指定媒体目录、可选 PIN）

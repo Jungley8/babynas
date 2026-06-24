@@ -49,6 +49,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4   # 取仓库以附带 install.sh
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -57,5 +59,7 @@ jobs:
       - name: publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.tar.gz
+          files: |
+            dist/*.tar.gz
+            deploy/install.sh
           generate_release_notes: true
