@@ -1,0 +1,12 @@
+{
+  "name": "宝宝乐园",
+  "short_name": "宝宝乐园",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#FFF1EB",
+  "theme_color": "#FFF1EB",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

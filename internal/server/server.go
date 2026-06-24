@@ -78,6 +78,17 @@ func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 	cover.Handler(w, m.Seed, m.Category, m.Title)
 }
 
+// 显式 MIME 映射：精简 Linux/NAS（如 Alpine 容器）常缺 /etc/mime.types，
+// 导致 mime.TypeByExtension 返回空、ServeContent 退回 octet-stream，浏览器拒播。
+var mimeByExt = map[string]string{
+	".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac",
+	".flac": "audio/flac", ".wav": "audio/wav", ".ogg": "audio/ogg",
+	".opus": "audio/opus", ".wma": "audio/x-ms-wma",
+	".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm",
+	".mov": "video/quicktime", ".mkv": "video/x-matroska",
+	".avi": "video/x-msvideo", ".ts": "video/mp2t", ".flv": "video/x-flv",
+}
+
 // handleStream 直连磁盘文件流式播放。http.ServeContent 原生支持 HTTP Range，
 // 拖动进度、边下边播开箱即用，无需把文件读进内存。
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +104,10 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
+	// 显式设置 Content-Type，避免依赖系统 mime 库
+	if ct, ok := mimeByExt[m.Ext]; ok {
+		w.Header().Set("Content-Type", ct)
+	}
 	http.ServeContent(w, r, m.Title+m.Ext, time.Unix(m.MTime, 0), f)
 }
 

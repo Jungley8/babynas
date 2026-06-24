@@ -18,7 +18,8 @@
 <script>
 babyExitButton();
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-let W,H;function resize(){W=cv.width=innerWidth*devicePixelRatio;H=cv.height=innerHeight*devicePixelRatio;}
+let W,H;function resize(){W=cv.width=innerWidth*devicePixelRatio;H=cv.height=innerHeight*devicePixelRatio;
+  cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';}
 resize();addEventListener('resize',resize);
 const COLORS=['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FF6FB5','#C780FA','#FF9F45'];
 let parts=[];

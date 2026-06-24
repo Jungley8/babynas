@@ -22,7 +22,8 @@
 <script>
 babyExitButton();
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-let W,H;function resize(){const d=devicePixelRatio;W=cv.width=innerWidth*d;H=cv.height=innerHeight*d;ctx.lineCap='round';ctx.lineJoin='round';}
+let W,H;function resize(){const d=devicePixelRatio;W=cv.width=innerWidth*d;H=cv.height=innerHeight*d;
+  cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';ctx.lineCap='round';ctx.lineJoin='round';}
 resize();addEventListener('resize',resize);
 let hue=0,last={};
 function color(){hue=(hue+12)%360;return`hsl(${hue},85%,60%)`;}

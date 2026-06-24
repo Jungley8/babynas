@@ -53,7 +53,8 @@
       e.preventDefault(); e.stopPropagation();
       btn.classList.add('holding');
       babyVibrate(15);
-      timer = setTimeout(() => { babyVibrate([20, 40, 20]); location.href = '/'; }, 1200);
+      // 退出回到游戏列表（而非根首页）
+      timer = setTimeout(() => { babyVibrate([20, 40, 20]); location.href = '/#games'; }, 1200);
     };
     const cancel = () => { clearTimeout(timer); btn.classList.remove('holding'); };
     btn.addEventListener('touchstart', start, { passive: false });

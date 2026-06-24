@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="宝宝乐园">
 <meta name="theme-color" content="#FFF1EB">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>宝宝乐园</title>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -184,6 +186,7 @@ const GAMES = [
 ];
 
 function goHome() {
+  try{history.replaceState(null,'','#');}catch(e){}
   titleEl.textContent = '宝宝乐园';
   backBtn.classList.remove('show');
   main.innerHTML = `<div class="home">${ENTRIES.map(e=>`
@@ -200,6 +203,8 @@ function openEntry(k) {
 }
 
 function showGames() {
+  try{history.replaceState(null,'','#games');}catch(e){}
+  backBtn.classList.add('show');
   titleEl.textContent = '玩一玩';
   main.innerHTML = `<div class="grid">${GAMES.map(g=>`
     <button class="card" onclick="openGame('${g.id}')">
@@ -315,8 +320,15 @@ function maybeShowGuide(){
   if(!seen)document.getElementById('guide').classList.add('show');
 }
 
-goHome();
+// 启动路由：从游戏退出会带 #games，直接回到游戏列表
+if (location.hash === '#games') showGames();
+else goHome();
 maybeShowGuide();
+
+// 注册 Service Worker：离线缓存应用外壳与游戏
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
