@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,18 +12,26 @@ import (
 	"babynas/internal/cover"
 	"babynas/internal/db"
 	"babynas/internal/scanner"
+	"babynas/internal/transcode"
 )
 
 // Server HTTP 服务。前端与游戏通过 embed.FS 注入（见 main.go）。
 type Server struct {
 	db   *db.DB
 	scan *scanner.Scanner
-	web  http.Handler // 嵌入的前端静态资源
-	pin  string       // 家长 PIN（保护扫描/管理操作）
+	web  http.Handler          // 嵌入的前端静态资源
+	pin  string                // 家长 PIN（保护扫描/管理操作）
+	tc   *transcode.Transcoder // 可选：视频动态转码（ffmpeg 不存在时为 Direct 直通）
 }
 
 func New(database *db.DB, sc *scanner.Scanner, web http.Handler, pin string) *Server {
-	return &Server{db: database, scan: sc, web: web, pin: pin}
+	tc := transcode.New()
+	if tc.Available() {
+		log.Println("视频转码：已启用（检测到 ffmpeg，H.265 等不兼容编码将动态转码）")
+	} else {
+		log.Println("视频转码：未启用（未检测到 ffmpeg，不兼容编码的视频将无法播放）")
+	}
+	return &Server{db: database, scan: sc, web: web, pin: pin, tc: tc}
 }
 
 func (s *Server) Routes() http.Handler {
@@ -119,6 +128,14 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// 视频：编码不被浏览器支持时，用 ffmpeg 动态 remux/转码（ffmpeg 不存在则 Direct 直通）
+	if m.Category == "video" {
+		if mode := s.tc.Decide(m.Path, m.Ext); mode != transcode.Direct {
+			s.tc.Serve(w, r, m.Path, mode)
+			return
+		}
+	}
+
 	f, err := os.Open(m.Path)
 	if err != nil {
 		http.Error(w, "file gone", 410) // 文件已被移动/删除

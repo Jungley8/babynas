@@ -8,7 +8,8 @@ RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o /babynas .
 
 # ── 运行阶段（极简）──
 FROM alpine:3.20
-RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+# ffmpeg：可选，用于 H.265 等不兼容编码的视频动态转码/换壳
+RUN apk add --no-cache tzdata ffmpeg && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 COPY --from=build /babynas /babynas
 EXPOSE 8088
 # 媒体目录与数据库通过挂载卷传入
