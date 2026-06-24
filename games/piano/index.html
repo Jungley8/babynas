@@ -11,8 +11,9 @@
   #keys{height:100%;height:100dvh;display:flex;padding:8px;gap:6px;
     padding-top:calc(env(safe-area-inset-top) + 60px)}
   .key{flex:1;border-radius:0 0 18px 18px;display:flex;align-items:flex-end;justify-content:center;
-    padding-bottom:24px;font-size:22px;font-weight:800;color:rgba(0,0,0,.35);
+    padding-bottom:24px;font-size:clamp(22px,3.5vw,40px);font-weight:800;color:rgba(0,0,0,.35);
     box-shadow:inset 0 -8px 16px rgba(0,0,0,.15);transition:transform .06s,filter .06s;cursor:pointer}
+  @media (min-width:768px){.key{padding-bottom:40px}}
   .key.hit{transform:scaleY(.96);filter:brightness(1.25)}
 </style>
 </head>

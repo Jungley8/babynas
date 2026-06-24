@@ -89,6 +89,35 @@
   .g-card li b{color:#E8506E}
   .g-card button{margin-top:22px;width:100%;padding:15px;border:none;border-radius:16px;
     background:linear-gradient(135deg,#F6D365,#FDA085);color:#fff;font-size:16px;font-weight:800;cursor:pointer}
+
+  /* ── iPad / 平板适配（≥768px）：放大布局与触摸目标 ── */
+  @media (min-width:768px){
+    #app{max-width:920px}
+    header{padding:20px 26px}
+    header h1{font-size:28px}
+    #back{width:50px;height:50px;font-size:24px}
+    main{padding:12px 26px 36px}
+    .home{gap:26px;padding-top:18px;max-width:680px;margin:0 auto}
+    .entry{padding:38px;font-size:34px;border-radius:36px}
+    .entry .em{font-size:64px}
+    .entry span div:last-child{font-size:16px !important}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px}
+    .card .t{font-size:15px;padding:11px 8px}
+    .sub{font-size:22px}
+    #player img{max-width:380px}
+    #player video{max-height:70vh}
+    #player .pt{font-size:22px}
+    #player .close{width:60px;height:60px;font-size:28px}
+    .g-card{max-width:520px;padding:36px 32px}
+    .g-card .g-em{font-size:60px}
+    .g-card h2{font-size:24px}
+    .g-card ul{font-size:16px}
+  }
+  /* 大屏横屏 iPad（≥1024px）：入口横向两列更省空间 */
+  @media (min-width:1024px) and (orientation:landscape){
+    .home{grid-template-columns:1fr 1fr;max-width:900px}
+    .home .entry:first-child{grid-column:1 / -1}
+  }
   /* 用眼提醒 */
   #rest{position:fixed;inset:0;background:rgba(10,10,20,.92);z-index:200;display:none;
     flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:20px;text-align:center;padding:30px}

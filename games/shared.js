@@ -40,6 +40,11 @@
       #baby-exit .ring{fill:none;stroke:#FF6B6B;stroke-width:4;stroke-linecap:round;
         stroke-dasharray:120;stroke-dashoffset:120;transition:stroke-dashoffset .05s linear}
       #baby-exit.holding .ring{stroke-dashoffset:0;transition:stroke-dashoffset 1.2s linear}
+      @media (min-width:768px){
+        #baby-exit{width:60px;height:60px;top:calc(env(safe-area-inset-top) + 12px);left:14px}
+        #baby-exit svg{width:60px;height:60px}
+        #baby-exit span{font-size:28px}
+      }
     `;
     document.head.appendChild(style);
 
