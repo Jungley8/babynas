@@ -59,6 +59,11 @@
   .card img{width:100%;aspect-ratio:1;display:block;object-fit:cover}
   .card .t{padding:9px 7px;font-size:13px;font-weight:600;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 文件夹卡片 */
+  .card .folder{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;font-size:44px;background:linear-gradient(135deg,#FFECD2,#FCB69F)}
+  .card .folder .fc{font-size:12px;font-weight:700;color:#9a6a3a;background:rgba(255,255,255,.6);
+    padding:1px 9px;border-radius:10px}
   .sub{font-size:18px;font-weight:800;margin:6px 4px 14px;color:#5a5a6a}
   .empty{text-align:center;padding:60px 20px;color:#8a8a9a;font-size:15px;line-height:1.8}
   /* 骨架屏 */
@@ -132,7 +137,7 @@
 <body>
 <div id="app">
   <header>
-    <button id="back" onclick="goHome()">←</button>
+    <button id="back" onclick="goBack()">←</button>
     <h1 id="title">宝宝乐园</h1>
   </header>
   <main id="main"></main>
@@ -186,6 +191,7 @@ const GAMES = [
 ];
 
 function goHome() {
+  nav.active = false; nav.path = '';
   try{history.replaceState(null,'','#');}catch(e){}
   titleEl.textContent = '宝宝乐园';
   backBtn.classList.remove('show');
@@ -199,7 +205,17 @@ function goHome() {
 function openEntry(k) {
   backBtn.classList.add('show');
   if (k === 'game') return showGames();
-  showSubs(k);
+  browse(k, '');
+}
+
+// 返回键：在目录内逐级回到上一层，根层则回首页
+function goBack() {
+  if (nav.active && nav.path) {
+    const parent = nav.path.includes('/') ? nav.path.slice(0, nav.path.lastIndexOf('/')) : '';
+    return browse(nav.cat, parent);
+  }
+  nav.active = false;
+  goHome();
 }
 
 function showGames() {
@@ -221,59 +237,59 @@ function skeletons(n){
   return `<div class="grid">${Array.from({length:n},()=>'<div class="card skel"></div>').join('')}</div>`;
 }
 
-async function showSubs(cat) {
-  titleEl.textContent = cat === 'audio' ? '听一听' : '看一看';
+// ── 逐级目录浏览 ──
+const nav = { active:false, cat:'', path:'' };
+const CAT_ROOT = { audio:'听一听', video:'看一看' };
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+
+async function browse(cat, path) {
+  nav.active = true; nav.cat = cat; nav.path = path;
+  backBtn.classList.add('show');
+  // 标题：根层显示分类名，深层显示当前文件夹名
+  const name = path ? path.slice(path.lastIndexOf('/') + 1) : CAT_ROOT[cat];
+  titleEl.textContent = name;
+  try{history.replaceState(null,'',`#${cat}:${path}`);}catch(e){}
   main.innerHTML = skeletons(8);
-  const subs = await fetch(`/api/subs?cat=${cat}`).then(r=>r.json()).catch(()=>[]);
-  if (!subs || !subs.length) {
-    main.innerHTML = `<div class="empty">还没有内容<br><small>请在 NAS 对应目录放入文件后扫描</small></div>`;
+
+  let data;
+  try {
+    data = await fetch(`/api/browse?cat=${cat}&path=${encodeURIComponent(path)}`).then(r=>r.json());
+  } catch(e) {
+    main.innerHTML = `<div class="empty">加载失败，请检查与 NAS 的连接</div>`;
     return;
   }
-  main.innerHTML = `<div class="grid">${subs.map(s=>`
-    <button class="card" onclick="showList('${cat}','${encodeURIComponent(s.sub)}')">
-      <div style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-        background:linear-gradient(135deg,#FFECD2,#FCB69F);font-size:40px">📁<span style="font-size:12px;color:#7a5a3a">${s.count}</span></div>
-      <div class="t">${s.sub || '未分类'}</div></button>`).join('')}</div>`;
-}
+  // 浏览期间用户已离开，丢弃过期结果
+  if (!nav.active || nav.cat !== cat || nav.path !== path) return;
 
-let listState = { cat:'', sub:'', page:0, loading:false, done:false };
-async function showList(cat, subEnc) {
-  const sub = decodeURIComponent(subEnc);
-  listState = { cat, sub, page:0, loading:false, done:false };
-  titleEl.textContent = sub || '全部';
-  main.innerHTML = skeletons(12);
-  main.onscroll = onListScroll;
-  // 首屏数据到达后替换骨架
-  await loadMore(true);
-}
-
-async function loadMore(first) {
-  if (listState.loading || listState.done) return;
-  listState.loading = true;
-  const { cat, sub, page } = listState;
-  const data = await fetch(`/api/list?cat=${cat}&sub=${encodeURIComponent(sub)}&page=${page}`).then(r=>r.json());
-  // 首屏：用真实网格替换骨架
-  if (first) main.innerHTML = `<div class="grid" id="listgrid"></div>`;
-  const grid = document.getElementById('listgrid');
-  if (!grid) { listState.loading = false; return; }
-  if (first && (!data.items || !data.items.length)) {
-    main.innerHTML = `<div class="empty">这个分类还没有内容</div>`;
-    listState.done = true; listState.loading = false; return;
+  const folders = data.folders || [], files = data.files || [];
+  if (!folders.length && !files.length) {
+    main.innerHTML = `<div class="empty">这里还没有内容<br><small>在 NAS 对应目录放入文件后重新扫描</small></div>`;
+    return;
   }
-  (data.items||[]).forEach(m => {
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  // 先列文件夹（📁 + 计数），点击进入下一层
+  folders.forEach(f => {
+    const sub = path ? `${path}/${f.name}` : f.name;
     const b = document.createElement('button');
     b.className = 'card';
-    b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${m.title}</div>`;
+    b.innerHTML = `<div class="folder">📁<span class="fc">${f.count}</span></div><div class="t">${esc(f.name)}</div>`;
+    b.onclick = () => browse(cat, sub);
+    grid.appendChild(b);
+  });
+  // 再列当前层文件（封面 + 标题），点击播放
+  files.forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'card';
+    b.innerHTML = `<img loading="lazy" src="/api/cover/${m.id}" alt=""><div class="t">${esc(m.title)}</div>`;
     b.onclick = () => playMedia(m);
     grid.appendChild(b);
   });
-  if (!data.items || data.items.length < data.pageSize) listState.done = true;
-  listState.page++;
-  listState.loading = false;
-}
-
-function onListScroll() {
-  if (main.scrollTop + main.clientHeight > main.scrollHeight - 300) loadMore();
+  main.innerHTML = '';
+  main.appendChild(grid);
+  main.scrollTop = 0;
 }
 
 // ── 播放器 ──

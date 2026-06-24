@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"babynas/internal/cover"
@@ -28,8 +29,9 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// ── API ──
-	mux.HandleFunc("GET /api/subs", s.handleSubs)     // ?cat=audio
-	mux.HandleFunc("GET /api/list", s.handleList)     // ?cat=&sub=&page=
+	mux.HandleFunc("GET /api/subs", s.handleSubs)       // ?cat=audio
+	mux.HandleFunc("GET /api/list", s.handleList)       // ?cat=&sub=&page=
+	mux.HandleFunc("GET /api/browse", s.handleBrowse)   // ?cat=&path= 逐级目录浏览
 	mux.HandleFunc("GET /api/cover/{id}", s.handleCover)
 	mux.HandleFunc("GET /api/stream/{id}", s.handleStream)
 	mux.HandleFunc("GET /api/scan/status", s.handleScanStatus)
@@ -66,6 +68,25 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"items": items, "page": page, "pageSize": pageSize})
+}
+
+// handleBrowse 逐级目录浏览：返回某层的子文件夹与该层直接文件。
+func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	cat := q.Get("cat")
+	path := strings.Trim(q.Get("path"), "/") // 归一化，去除首尾斜杠
+	folders, files, err := s.db.Browse(cat, path)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if files == nil {
+		files = []db.Media{}
+	}
+	if folders == nil {
+		folders = []db.Folder{}
+	}
+	writeJSON(w, map[string]any{"path": path, "folders": folders, "files": files})
 }
 
 func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {

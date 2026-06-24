@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	_ "modernc.org/sqlite"
 )
@@ -176,6 +178,80 @@ func (d *DB) List(category, sub string, limit, offset int) ([]Media, error) {
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// Folder 浏览时的子文件夹条目（含递归文件计数）。
+type Folder struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+const mediaCols = `id, path, rel, category, sub, title, ext, size, mtime, seed, added_at`
+
+func scanMedia(rows *sql.Rows) ([]Media, error) {
+	var out []Media
+	for rows.Next() {
+		var m Media
+		if err := rows.Scan(&m.ID, &m.Path, &m.Rel, &m.Category, &m.Sub,
+			&m.Title, &m.Ext, &m.Size, &m.MTime, &m.Seed, &m.AddedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// escapeLike 转义 LIKE 通配符，配合 ESCAPE '\' 使用，避免文件夹名含 % _ 时误匹配。
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+// Browse 浏览 category 下某一层目录 path（"" 为根）：
+// 返回该层的直接子文件夹（带递归计数）与直接位于该层的文件。
+// 基于 rel 前缀匹配，命中 rel 的 UNIQUE 索引；substr/instr 按字符计数，兼容中文目录名。
+func (d *DB) Browse(category, path string) ([]Folder, []Media, error) {
+	prefix := ""
+	if path != "" {
+		prefix = path + "/"
+	}
+	like := escapeLike(prefix) + "%"
+	startPos := utf8.RuneCountInString(prefix) + 1 // SQLite substr 为 1 起始、按字符
+
+	// 子文件夹：取剩余路径的第一段，按段聚合计数
+	fRows, err := d.Query(`
+SELECT seg, COUNT(*) FROM (
+  SELECT substr(rem, 1, instr(rem, '/') - 1) AS seg FROM (
+    SELECT substr(rel, ?) AS rem FROM media
+    WHERE category=? AND rel LIKE ? ESCAPE '\'
+  ) WHERE instr(rem, '/') > 0
+) GROUP BY seg ORDER BY seg`, startPos, category, like)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer fRows.Close()
+	var folders []Folder
+	for fRows.Next() {
+		var f Folder
+		if err := fRows.Scan(&f.Name, &f.Count); err != nil {
+			return nil, nil, err
+		}
+		folders = append(folders, f)
+	}
+	if err := fRows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	// 当前层直接文件：剩余路径中不再含 '/'
+	mRows, err := d.Query(`
+SELECT `+mediaCols+` FROM media
+WHERE category=? AND rel LIKE ? ESCAPE '\' AND instr(substr(rel, ?), '/') = 0
+ORDER BY title`, category, like, startPos)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer mRows.Close()
+	files, err := scanMedia(mRows)
+	return folders, files, err
 }
 
 // ByID 取单条（播放/封面时用）。

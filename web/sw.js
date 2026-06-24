@@ -1,7 +1,7 @@
 // babynas Service Worker —— 预缓存应用外壳与全部游戏，离线（离开家庭 NAS）也能玩游戏。
 // 媒体流 /api/* 走网络（依赖 NAS），离线时自然不可用，但不影响游戏。
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `babynas-${VERSION}`;
 
 // 应用外壳 + 自包含游戏（全部为静态资源）
