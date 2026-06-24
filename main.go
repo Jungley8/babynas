@@ -29,8 +29,14 @@ func main() {
 		videoDir = flag.String("video", "", "视频根目录（递归扫描）")
 		dbPath   = flag.String("db", "babynas.db", "SQLite 数据库路径")
 		pin      = flag.String("pin", "", "家长 PIN，保护扫描/管理操作（留空则不校验）")
+		showVer  = flag.Bool("version", false, "打印版本号并退出")
 	)
 	flag.Parse()
+
+	if *showVer {
+		println(version)
+		return
+	}
 
 	database, err := db.Open(*dbPath)
 	if err != nil {

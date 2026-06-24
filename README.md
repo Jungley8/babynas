@@ -60,12 +60,36 @@ make build
 make dist        # 生成 linux-amd64 / arm64 / armv7 / darwin 到 dist/
 ```
 
-### systemd（群晖/Linux NAS）
+### 一键安装脚本（Linux systemd，推荐）
+
+自动探测架构、下载对应 Release、安装为 systemd 服务：
 
 ```bash
-sudo cp dist/babynas-linux-amd64 /opt/babynas/babynas
+curl -fsSL https://raw.githubusercontent.com/Jungley8/babynas/main/deploy/install.sh -o install.sh
+chmod +x install.sh
+
+# 首次安装（指定媒体目录、可选 PIN）
+sudo ./install.sh install --audio /volume1/media/音频 --video /volume1/media/视频 --pin 1234
+
+# 升级到最新版（保留配置，仅换二进制并重启）
+sudo ./install.sh upgrade
+
+# 指定版本
+sudo ./install.sh upgrade --version v0.5.0
+
+# 其他
+sudo ./install.sh status      # 查看运行状态
+sudo ./install.sh uninstall   # 移除服务（保留媒体与数据库）
+```
+
+配置存于 `/opt/babynas/babynas.env`，升级不会覆盖；改完执行 `sudo systemctl restart babynas`。
+
+### 手动 systemd 安装
+
+```bash
+sudo install -D -m755 dist/babynas-linux-amd64 /opt/babynas/babynas
 sudo cp deploy/babynas.service /etc/systemd/system/
-# 编辑 service 里的目录路径，然后：
+# 创建 /opt/babynas/babynas.env 配置 ADDR/AUDIO/VIDEO/DB/PIN，然后：
 sudo systemctl enable --now babynas
 ```
 
