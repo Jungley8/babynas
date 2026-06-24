@@ -39,7 +39,11 @@
       #baby-exit svg{position:absolute;inset:0;width:48px;height:48px;transform:rotate(-90deg)}
       #baby-exit .ring{fill:none;stroke:#FF6B6B;stroke-width:4;stroke-linecap:round;
         stroke-dasharray:120;stroke-dashoffset:120;transition:stroke-dashoffset .05s linear}
-      #baby-exit.holding .ring{stroke-dashoffset:0;transition:stroke-dashoffset 1.2s linear}
+      #baby-exit.holding .ring{stroke-dashoffset:0;transition:stroke-dashoffset .7s linear}
+      #baby-exit-hint{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:14px;z-index:9999;
+        background:rgba(20,18,30,.85);color:#fff;padding:7px 14px;border-radius:18px;font-size:13px;
+        opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
+      #baby-exit-hint.show{opacity:1}
       @media (min-width:768px){
         #baby-exit{width:60px;height:60px;top:calc(env(safe-area-inset-top) + 12px);left:14px}
         #baby-exit svg{width:60px;height:60px}
@@ -48,21 +52,41 @@
     `;
     document.head.appendChild(style);
 
-    let timer = null;
-    const start = (e) => {
+    const hint = document.createElement('div');
+    hint.id = 'baby-exit-hint';
+    hint.textContent = '双击返回上一页 · 长按回首页';
+    document.body.appendChild(hint);
+    const flashHint = () => {
+      hint.classList.add('show');
+      clearTimeout(hint._t);
+      hint._t = setTimeout(() => hint.classList.remove('show'), 1600);
+    };
+
+    // 统一返回手势：双击 → 上一页(游戏列表)，长按 → 首页，单击仅提示
+    let taps = 0, tapT = null, holdT = null, held = false;
+    const down = (e) => {
       e.preventDefault(); e.stopPropagation();
+      held = false;
       btn.classList.add('holding');
       babyVibrate(15);
-      // 退出回到游戏列表（而非根首页）
-      timer = setTimeout(() => { babyVibrate([20, 40, 20]); location.href = '/#games'; }, 1200);
+      holdT = setTimeout(() => { held = true; babyVibrate([20,40,20]); location.href = '/'; }, 700);
     };
-    const cancel = () => { clearTimeout(timer); btn.classList.remove('holding'); };
-    btn.addEventListener('touchstart', start, { passive: false });
-    btn.addEventListener('touchend', cancel);
-    btn.addEventListener('touchmove', cancel);
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('mouseup', cancel);
-    btn.addEventListener('mouseleave', cancel);
+    const up = (e) => {
+      if (e) e.preventDefault();
+      clearTimeout(holdT);
+      btn.classList.remove('holding');
+      if (held) return;
+      taps++;
+      if (taps >= 2) { clearTimeout(tapT); taps = 0; babyVibrate(20); location.href = '/#games'; }
+      else { tapT = setTimeout(() => { taps = 0; flashHint(); }, 350); }
+    };
+    const leave = () => { clearTimeout(holdT); btn.classList.remove('holding'); };
+    btn.addEventListener('touchstart', down, { passive: false });
+    btn.addEventListener('touchend', up);
+    btn.addEventListener('touchmove', leave);
+    btn.addEventListener('mousedown', down);
+    btn.addEventListener('mouseup', up);
+    btn.addEventListener('mouseleave', leave);
   };
 
   // ── 阻止下拉刷新 / 双指缩放 / 长按菜单等系统手势 ──

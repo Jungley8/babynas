@@ -31,6 +31,10 @@
     box-shadow:0 2px 10px rgba(0,0,0,.12);transition:transform .12s}
   #back:active{transform:scale(.9)}
   #back.show{display:block}
+  #back-hint{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:400;
+    background:rgba(20,18,30,.85);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap}
+  #back-hint.show{opacity:1;transform:translateX(-50%) translateY(0)}
   main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 16px 24px}
   /* 入口大卡片 */
   .home{display:grid;grid-template-columns:1fr;gap:18px;padding-top:10px}
@@ -137,7 +141,7 @@
 <body>
 <div id="app">
   <header>
-    <button id="back" onclick="goBack()">←</button>
+    <button id="back">←</button>
     <h1 id="title">宝宝乐园</h1>
   </header>
   <main id="main"></main>
@@ -208,7 +212,7 @@ function openEntry(k) {
   browse(k, '');
 }
 
-// 返回键：在目录内逐级回到上一层，根层则回首页
+// 返回键：双击回上一层，长按回首页（与游戏内统一）
 function goBack() {
   if (nav.active && nav.path) {
     const parent = nav.path.includes('/') ? nav.path.slice(0, nav.path.lastIndexOf('/')) : '';
@@ -217,6 +221,42 @@ function goBack() {
   nav.active = false;
   goHome();
 }
+
+function vibrate(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
+
+// 统一返回手势：双击 → 上一页(onBack)，长按 → 首页(onHome)，单击仅提示
+function attachBackGestures(el, onBack, onHome) {
+  let taps = 0, tapT = null, holdT = null, held = false;
+  const down = () => {
+    held = false;
+    holdT = setTimeout(() => { held = true; vibrate([20,40,20]); onHome(); }, 700);
+  };
+  const up = () => {
+    clearTimeout(holdT);
+    if (held) return;             // 长按已处理
+    taps++;
+    if (taps >= 2) { clearTimeout(tapT); taps = 0; vibrate(20); onBack(); }
+    else { tapT = setTimeout(() => { taps = 0; flashBackHint(); }, 350); }
+  };
+  el.addEventListener('touchstart', e => { e.preventDefault(); down(); }, {passive:false});
+  el.addEventListener('touchend',   e => { e.preventDefault(); up(); });
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mouseup', up);
+  el.addEventListener('mouseleave', () => clearTimeout(holdT));
+}
+let backHintEl = null;
+function flashBackHint() {
+  if (!backHintEl) {
+    backHintEl = document.createElement('div');
+    backHintEl.id = 'back-hint';
+    document.body.appendChild(backHintEl);
+  }
+  backHintEl.textContent = '双击返回上一页 · 长按回首页';
+  backHintEl.classList.add('show');
+  clearTimeout(backHintEl._t);
+  backHintEl._t = setTimeout(() => backHintEl.classList.remove('show'), 1600);
+}
+attachBackGestures(backBtn, goBack, goHome);
 
 function showGames() {
   try{history.replaceState(null,'','#games');}catch(e){}
@@ -295,17 +335,48 @@ async function browse(cat, path) {
 // ── 播放器 ──
 const player = document.getElementById('player');
 const stage = document.getElementById('stage');
+// HTMLMediaElement error code → 人话
+const MEDIA_ERR = {
+  1:'播放被中止', 2:'网络错误（无法连接 NAS）',
+  3:'解码失败（文件损坏或编码不被浏览器支持）',
+  4:'格式不支持（该编码浏览器无法播放，建议转码为 H.264/AAC 或 MP3）'
+};
 function playMedia(m) {
   startUseTimer();
   player.classList.add('show');
+  const src = `/api/stream/${m.id}`;
+  stage.innerHTML = '';
+  const el = document.createElement(m.category === 'video' ? 'video' : 'audio');
+  el.src = src; el.controls = true; el.autoplay = true; el.preload = 'metadata';
+  if (m.category === 'video') el.playsInline = true;
+
+  const info = document.createElement('div');
+  info.className = 'pt';
+  info.textContent = m.title;
+
+  // 播放失败时显示真实错误码，便于定位（而非静默 0:00）
+  const showErr = (msg) => {
+    const e = document.createElement('div');
+    e.style.cssText = 'margin-top:14px;padding:12px 16px;background:rgba(255,80,80,.18);border-radius:12px;font-size:13px;line-height:1.6;color:#ffd0d0;max-width:420px;text-align:center';
+    e.innerHTML = `⚠️ ${msg}<br><small style="opacity:.7">${esc(m.title)}${m.ext||''}</small>`;
+    stage.appendChild(e);
+  };
+  el.addEventListener('error', () => {
+    const code = el.error ? el.error.code : 0;
+    showErr(MEDIA_ERR[code] || ('未知错误（code '+code+'）'));
+  });
+  el.addEventListener('stalled', () => console.warn('media stalled', src));
+
   if (m.category === 'video') {
-    stage.innerHTML = `<video src="/api/stream/${m.id}" controls autoplay playsinline></video>
-      <div class="pt">${m.title}</div>`;
+    stage.appendChild(el); stage.appendChild(info);
   } else {
-    stage.innerHTML = `<img src="/api/cover/${m.id}" alt="">
-      <div class="pt">${m.title}</div>
-      <audio src="/api/stream/${m.id}" controls autoplay></audio>`;
+    const img = document.createElement('img');
+    img.src = `/api/cover/${m.id}`; img.alt = '';
+    stage.appendChild(img); stage.appendChild(info); stage.appendChild(el);
   }
+  // autoplay 被策略拦截时不算错误，用户点播放键即可
+  const p = el.play && el.play();
+  if (p && p.catch) p.catch(() => {});
 }
 function closePlayer() {
   player.classList.remove('show');
