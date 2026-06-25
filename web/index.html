@@ -377,10 +377,12 @@ async function browse(cat, path) {
   const name = path ? path.slice(path.lastIndexOf('/') + 1) : CAT_ROOT[cat];
   titleEl.textContent = name;
   try{history.replaceState(null,'',`#${cat}:${path}`);}catch(e){}
+  main.onscroll = null;          // 先解绑，避免首屏加载期间的滚动竞态
+  main.scrollTop = 0;
   main.innerHTML = skeletons(12);
-  main.onscroll = onBrowseScroll;
   await loadFavIDs(cat); // 进入目录前加载收藏，红心即时显示
   await loadBrowsePage(true);
+  main.onscroll = onBrowseScroll; // 首屏就绪后再开启无限滚动
 }
 
 function makeFolderCard(cat, path, f) {
@@ -418,6 +420,7 @@ async function playDir(cat, path) {
 
 async function loadBrowsePage(first) {
   if (bState.loading || bState.done) return;
+  if (!first && !bState.grid) return; // 首屏未就绪，忽略过早的翻页（滚动竞态）
   bState.loading = true;
   const { cat, path, page } = bState;
   let data;
@@ -427,8 +430,8 @@ async function loadBrowsePage(first) {
     if (first) main.innerHTML = `<div class="empty">加载失败，请检查与 NAS 的连接</div>`;
     bState.loading = false; return;
   }
-  // 已离开当前目录，丢弃过期结果
-  if (!nav.active || nav.cat !== cat || nav.path !== path) return;
+  // 已离开当前目录，丢弃过期结果（同时释放 loading，避免卡死）
+  if (!nav.active || nav.cat !== cat || nav.path !== path) { bState.loading = false; return; }
 
   const folders = data.folders || [], files = data.files || [];
   if (first) {
