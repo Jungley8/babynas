@@ -103,6 +103,9 @@
 
   /* 首页次级入口：收藏 / 歌单 */
   .home-sub{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .lite-link{display:block;text-align:center;margin-top:18px;padding:12px;border-radius:16px;
+    background:rgba(255,255,255,.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    color:#5a5a6a;font-size:14px;font-weight:600;text-decoration:none}
   .entry2{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;border-radius:22px;
     border:none;cursor:pointer;font-size:18px;font-weight:800;color:#fff;
     box-shadow:0 6px 16px rgba(0,0,0,.12);transition:transform .12s;animation:rise .5s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:.26s}
@@ -283,6 +286,7 @@ function goHome() {
       <button class="entry2 e-fav"  onclick="showFavs()"><span class="em">⭐</span>收藏</button>
       <button class="entry2 e-list" onclick="showPlaylists()"><span class="em">📋</span>歌单</button>
     </div>
+    <a class="lite-link" href="/lite">📖 Kindle / 灰度屏 → 轻享版</a>
   </div>`;
 }
 

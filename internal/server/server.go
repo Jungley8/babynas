@@ -60,6 +60,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/playlists/{id}/items", s.handlePlaylistAdd)
 	mux.HandleFunc("DELETE /api/playlists/{id}/items/{mid}", s.handlePlaylistRemove)
 
+	// ── Lite 模式（Kindle / 灰度屏：服务端渲染，无 JS）──
+	s.liteRoutes(mux)
+
 	// ── 前端 + 游戏（静态，由 embed.FS 提供）──
 	mux.Handle("/", s.web)
 
